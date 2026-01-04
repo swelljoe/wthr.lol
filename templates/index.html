@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>wthr.lol - Weather Without the BS</title>
+    
+    <!-- Pico.css -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css">
+    
+    <!-- Datastar -->
+    <script type="module" defer src="https://cdn.jsdelivr.net/npm/@sudodevnull/datastar"></script>
+    
+    <style>
+        .weather-container {
+            max-width: 800px;
+            margin: 2rem auto;
+            padding: 2rem;
+        }
+        
+        .hero {
+            text-align: center;
+            margin-bottom: 3rem;
+        }
+        
+        .weather-card {
+            background: var(--card-background-color);
+            border-radius: var(--border-radius);
+            padding: 2rem;
+            margin: 1rem 0;
+        }
+        
+        .temperature {
+            font-size: 3rem;
+            font-weight: bold;
+            margin: 1rem 0;
+        }
+        
+        .location-input {
+            margin: 2rem 0;
+        }
+    </style>
+</head>
+<body>
+    <main class="container">
+        <div class="weather-container">
+            <div class="hero">
+                <h1>🌤️ wthr.lol</h1>
+                <p>Weather without the ads, tracking, or BS</p>
+            </div>
+            
+            <article class="weather-card">
+                <header>
+                    <h2>Current Weather</h2>
+                </header>
+                
+                <div class="location-input">
+                    <label for="location">
+                        Enter your location:
+                        <input 
+                            type="text" 
+                            id="location" 
+                            name="location" 
+                            placeholder="City name or ZIP code"
+                            data-store-set="location"
+                        >
+                    </label>
+                    <button 
+                        type="button"
+                        data-on-click="$$get('/api/weather')"
+                    >
+                        Get Weather
+                    </button>
+                </div>
+                
+                <div id="weather-display" data-store-get="weather">
+                    <p>Enter a location to see the weather</p>
+                </div>
+            </article>
+            
+            <article>
+                <header>
+                    <h3>About wthr.lol</h3>
+                </header>
+                <p>
+                    A simple, ad-free weather application built with:
+                </p>
+                <ul>
+                    <li><strong>Backend:</strong> Go + PostgreSQL</li>
+                    <li><strong>Frontend:</strong> HTML + Datastar</li>
+                    <li><strong>Styling:</strong> Pico.css</li>
+                </ul>
+                <p>
+                    Because weather information should be fast, clean, and respect your privacy.
+                </p>
+            </article>
+        </div>
+    </main>
+    
+    <footer class="container">
+        <small>
+            Made with ☕ | 
+            <a href="https://github.com/swelljoe/wthr.lol">Source on GitHub</a>
+        </small>
+    </footer>
+</body>
+</html>
