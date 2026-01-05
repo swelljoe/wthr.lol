@@ -66,8 +66,8 @@
             }
         });
 
-        // Store the click handler so we can add it only once
-        let clickOutsideHandler = null;
+        // Store flag to track if click handler has been added
+        let clickHandlerAdded = false;
 
         function setupAutocomplete() {
             const input = document.getElementById('location');
@@ -75,13 +75,17 @@
             let debounceTimer;
 
             // Hide on click outside - only add listener once
-            if (!clickOutsideHandler) {
-                clickOutsideHandler = (e) => {
-                    if (!input.contains(e.target) && !list.contains(e.target)) {
-                        list.classList.remove('visible');
+            if (!clickHandlerAdded) {
+                document.addEventListener('click', (e) => {
+                    // Get fresh references each time the handler runs
+                    const currentInput = document.getElementById('location');
+                    const currentList = document.getElementById('suggestions');
+                    if (currentInput && currentList && 
+                        !currentInput.contains(e.target) && !currentList.contains(e.target)) {
+                        currentList.classList.remove('visible');
                     }
-                };
-                document.addEventListener('click', clickOutsideHandler);
+                });
+                clickHandlerAdded = true;
             }
 
             input.addEventListener('input', (e) => {
