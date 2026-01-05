@@ -24,43 +24,8 @@ jobs:
           fi
           echo "Building version: $VERSION"
 
-          # Run build in Fedora container to access correct RPM macros/deps
-          docker run --rm -v "$PWD:/src" -w /src -e VERSION=$VERSION fedora:latest /bin/bash -c "
-            set -ex
-            # Install build dependencies
-            dnf install -y rpm-build golang systemd-rpm-macros tar git
-
-            # Setup Build Environment
-            mkdir -p ~/rpmbuild/{BUILD,RPMS,SOURCES,SPECS,SRPMS}
-
-            # Fix git ownership issue since we are mounting the runner's workspace
-            git config --global --add safe.directory /src
-
-            # Populate wthr.db
-            echo "--- Building import-geo ---"
-            go build -v -o bin/import-geo ./cmd/import-geo
-            
-            echo "--- Running import-geo ---"
-            # Increase verbosity or check for errors
-            ./bin/import-geo || { echo "import-geo failed"; exit 1; }
-            ls -lh wthr.db
-            
-            echo "--- Creating Tarball ---"
-            # Create Source Tarball
-            # We transform the paths so they extract into a wthr-VERSION directory to match %setup expectations
-            # Manually select files instead of using git ls-files, so we include our generated wthr.db
-            tar --exclude-vcs -czf ~/rpmbuild/SOURCES/wthr-\$VERSION.tar.gz --transform \"s,^,wthr-\$VERSION/,\" .
-            
-            echo "--- Building RPM ---"
-            rpmbuild -bb packaging/rpm/wthr.spec \
-              --define \"_version \$VERSION\" \
-              --define \"_topdir \$HOME/rpmbuild\" || { echo "rpmbuild failed"; exit 1; }
-
-            echo "--- Copying Artifacts ---"
-            # Check if RPMs exist
-            ls -R ~/rpmbuild/RPMS/
-            cp ~/rpmbuild/RPMS/*/*.rpm /src/ || { echo "Copy failed - no RPMs found"; exit 1; }
-          "
+          # Run build in Fedora container
+          docker run --rm -v "$PWD:/src" -w /src -e VERSION=$VERSION fedora:latest /src/packaging/build-rpm.sh
 
           # Fix ownership of generated RPMs on the host
           sudo chown $(id -u):$(id -g) ./*.rpm
