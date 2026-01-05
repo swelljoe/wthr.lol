@@ -13,7 +13,7 @@ mkdir -p $HOME/rpmbuild/{BUILD,RPMS,SOURCES,SPECS,SRPMS}
 git config --global --add safe.directory /src
 
 echo "=== BUILDING IMPORT-GEO ==="
-go build -v -o bin/import-geo ./cmd/import-geo || { echo "go build failed"; exit 1; }
+go build -v -tags fts5 -o bin/import-geo ./cmd/import-geo || { echo "go build failed"; exit 1; }
 
 echo "=== POPULATING DB ==="
 ./bin/import-geo || { echo "import-geo failed"; exit 1; }

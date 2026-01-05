@@ -16,7 +16,7 @@ A lightweight, no-nonsense weather application written in Go.
 %setup -q
 
 %build
-go build -v -o bin/wthr ./cmd/wthr
+go build -v -tags fts5 -o bin/wthr ./cmd/wthr
 
 %install
 # Binary
