@@ -90,7 +90,7 @@ func (h *Handlers) HandleWeatherAPI(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			// Return a nice error fragment? Or just text for now
 			w.WriteHeader(http.StatusNotFound)
-			w.Write([]byte(fmt.Sprintf("<div class='error'>Location not found: %v</div>", err)))
+			w.Write([]byte(fmt.Sprintf("<div class='error'>Location not found: %s</div>", template.HTMLEscapeString(err.Error()))))
 			return
 		}
 	} else if latStr != "" && lonStr != "" {
