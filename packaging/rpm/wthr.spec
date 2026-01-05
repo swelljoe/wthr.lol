@@ -49,8 +49,8 @@ exit 0
 %systemd_post wthr.service
 
 # Initialize DB from seed if missing
-# Only create if file doesn't exist and target is not a symlink
-if [ ! -e %{_sharedstatedir}/wthr/wthr.db ] && [ ! -L %{_sharedstatedir}/wthr/wthr.db ]; then
+# Only create if target is not a symlink and file doesn't exist
+if [ ! -L %{_sharedstatedir}/wthr/wthr.db ] && [ ! -e %{_sharedstatedir}/wthr/wthr.db ]; then
     install -m 0640 -o wthr -g wthr %{_datadir}/wthr/wthr.db.seed %{_sharedstatedir}/wthr/wthr.db
 fi
 
