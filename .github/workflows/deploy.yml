@@ -1,0 +1,81 @@
+name: Deploy RPM
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set version
+        id: vars
+        run: |
+          TAG_REF="${GITHUB_REF#refs/tags/}"
+          VERSION="${TAG_REF#v}"
+
+          # Ensure VERSION contains only digits and dots (e.g., 1.2.3)
+          if [[ ! "$VERSION" =~ ^[0-9]+(\.[0-9]+)*$ ]]; then
+            echo "Error: Invalid version '$VERSION' derived from tag '$TAG_REF'. Expected digits and dots only (e.g., v1.2.3)." >&2
+            exit 1
+          fi
+
+          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
+      - name: Install RPM Tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y rpm
+
+      - name: Prepare Source Tarball
+        run: |
+          # Create a directory matching the name-version format
+          mkdir wthr-${{ env.VERSION }}
+          # Copy everything into it
+          cp -r * wthr-${{ env.VERSION }}/ 2>/dev/null || true
+          # Don't copy the directory into itself (trivial exclude)
+          rm -rf wthr-${{ env.VERSION }}/wthr-${{ env.VERSION }}
+          # Tar it up
+          tar czf wthr-${{ env.VERSION }}.tar.gz wthr-${{ env.VERSION }}
+
+      - name: Build RPM
+        run: |
+          mkdir -p ~/rpmbuild/{BUILD,RPMS,SOURCES,SPECS,SRPMS}
+          cp wthr-${{ env.VERSION }}.tar.gz ~/rpmbuild/SOURCES/
+          
+          rpmbuild -bb packaging/rpm/wthr.spec \
+            --define "_version ${{ env.VERSION }}" \
+            --define "_topdir $HOME/rpmbuild"
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: wthr-rpm
+          path: ~/rpmbuild/RPMS/*/*.rpm
+
+      - name: Deploy to EC2
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+          HOST: deploy.wthr.lol
+          USER: deploy
+        run: |
+          # Setup SSH
+          mkdir -p ~/.ssh
+          # Ensure the private key is removed when this step finishes (successfully or on error)
+          trap 'rm -f ~/.ssh/id_rsa' EXIT
+          echo "$SSH_PRIVATE_KEY" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -H $HOST >> ~/.ssh/known_hosts
+
+          # Find the RPM file
+          RPM_FILE=$(find ~/rpmbuild/RPMS -name "*.rpm")
+          RPM_NAME=$(basename $RPM_FILE)
+
+          # Copy RPM
+          scp $RPM_FILE $USER@$HOST:/tmp/$RPM_NAME
+
+          # Install/Update - RPM triggers restart automatically via %postun_with_restart
+          ssh $USER@$HOST "sudo dnf install -y -v /tmp/$RPM_NAME"
