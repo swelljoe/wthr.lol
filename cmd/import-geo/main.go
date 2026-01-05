@@ -80,7 +80,9 @@ func processDataset(db *sql.DB, url, name string, importer importFunc) error {
 				return err
 			}
 			err = importer(db, rc)
-			rc.Close()
+			if closeErr := rc.Close(); closeErr != nil && err == nil {
+				err = closeErr
+			}
 			return err
 		}
 	}
