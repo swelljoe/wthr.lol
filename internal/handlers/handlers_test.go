@@ -31,7 +31,7 @@ func TestHandleHealth(t *testing.T) {
 }
 
 func TestHandleIndex(t *testing.T) {
-	h := New(nil, nil)
+	h := &Handlers{}
 
 	req := httptest.NewRequest("GET", "/", nil)
 	w := httptest.NewRecorder()
@@ -45,7 +45,7 @@ func TestHandleIndex(t *testing.T) {
 }
 
 func TestHandleIndexNotFound(t *testing.T) {
-	h := New(nil, nil)
+	h := &Handlers{}
 
 	req := httptest.NewRequest("GET", "/notfound", nil)
 	w := httptest.NewRecorder()
