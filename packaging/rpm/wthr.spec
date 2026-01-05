@@ -9,6 +9,9 @@ Source0:    %{name}-%{version}.tar.gz
 
 BuildRequires: golang
 BuildRequires: systemd-rpm-macros
+Requires(pre): shadow-utils
+Provides: user(wthr)
+Provides: group(wthr)
 
 %description
 A lightweight, no-nonsense weather application written in Go.
