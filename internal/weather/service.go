@@ -198,44 +198,39 @@ func transform(fc *ForecastResponse, al *AlertsResponse) (*WeatherData, error) {
 // mapIcon maps NWS icon URL or forecast description to Material Symbol name
 func mapIcon(iconURL string, isDaytime bool) string {
 	// Basic mapping based on keywords
-	if contains(iconURL, "/skc") || contains(iconURL, "/few") {
+	if strings.Contains(iconURL, "/skc") || strings.Contains(iconURL, "/few") {
 		if !isDaytime {
 			return "clear_night"
 		}
 		return "sunny" // Clear/Sunny
 	}
-	if contains(iconURL, "/sct") || contains(iconURL, "/bkn") {
+	if strings.Contains(iconURL, "/sct") || strings.Contains(iconURL, "/bkn") {
 		if !isDaytime {
 			return "partly_cloudy_night"
 		}
 		return "partly_cloudy_day"
 	}
-	if contains(iconURL, "/ovc") {
+	if strings.Contains(iconURL, "/ovc") {
 		return "cloud" // Overcast
 	}
-	if contains(iconURL, "/rain") || contains(iconURL, "/showers") {
+	if strings.Contains(iconURL, "/rain") || strings.Contains(iconURL, "/showers") {
 		return "rainy"
 	}
-	if contains(iconURL, "/tsra") {
+	if strings.Contains(iconURL, "/tsra") {
 		return "thunderstorm"
 	}
-	if contains(iconURL, "/snow") {
+	if strings.Contains(iconURL, "/snow") {
 		return "weather_snowy"
 	}
-	if contains(iconURL, "/fog") {
+	if strings.Contains(iconURL, "/fog") {
 		return "foggy"
 	}
-	if contains(iconURL, "/wind") {
+	if strings.Contains(iconURL, "/wind") {
 		return "air"
 	}
 
 	return "thermostat"
 }
-
-func contains(s, substr string) bool {
-	return strings.Contains(s, substr)
-}
-
 // Geocode resolves a location string to coordinates
 func (s *Service) Geocode(query string) (float64, float64, error) {
 	return s.client.Geocode(query)
