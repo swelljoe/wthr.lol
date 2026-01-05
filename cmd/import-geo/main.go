@@ -79,8 +79,9 @@ func processDataset(db *sql.DB, url, name string, importer importFunc) error {
 			if err != nil {
 				return err
 			}
-			defer rc.Close()
-			return importer(db, rc)
+			err = importer(db, rc)
+			rc.Close()
+			return err
 		}
 	}
 	return fmt.Errorf("no txt file found in %s", zipPath)
