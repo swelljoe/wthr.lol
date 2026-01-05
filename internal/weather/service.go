@@ -43,7 +43,7 @@ func (s *Service) GetWeather(lat, lon float64) (*WeatherData, error) {
 	if cached != nil {
 		var wd WeatherData
 		if err := json.Unmarshal([]byte(cached.Data), &wd); err == nil {
-			wd.CachedAt = time.Now() // Indicate it's fresh from cache? Or original time?
+			wd.CachedAt = cached.CreatedAt
 			// Ideally we want to know when it expires.
 			wd.ExpiresAt = cached.ExpiresAt
 			return &wd, nil
