@@ -33,6 +33,9 @@ jobs:
             # Setup Build Environment
             mkdir -p ~/rpmbuild/{BUILD,RPMS,SOURCES,SPECS,SRPMS}
 
+            # Fix git ownership issue since we are mounting the runner's workspace
+            git config --global --add safe.directory /src
+
             # Create Source Tarball
             # Ensure wthr.db is tracked in git so the RPM spec's expectation is satisfied
             git ls-files --error-unmatch wthr.db
