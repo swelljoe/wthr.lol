@@ -1,107 +1,148 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="dark">
+<html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>wthr.lol - Weather Without the BS</title>
-    
-    <!-- Pico.css -->
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css">
-    
-    <!-- Datastar -->
-    <script type="module" defer src="https://cdn.jsdelivr.net/npm/@sudodevnull/datastar"></script>
-    
-    <style>
-        .weather-container {
-            max-width: 800px;
-            margin: 2rem auto;
-            padding: 2rem;
-        }
-        
-        .hero {
-            text-align: center;
-            margin-bottom: 3rem;
-        }
-        
-        .weather-card {
-            background: var(--card-background-color);
-            border-radius: var(--border-radius);
-            padding: 2rem;
-            margin: 1rem 0;
-        }
-        
-        .temperature {
-            font-size: 3rem;
-            font-weight: bold;
-            margin: 1rem 0;
-        }
-        
-        .location-input {
-            margin: 2rem 0;
-        }
-    </style>
+    <link rel="stylesheet" href="/static/css/style.css">
 </head>
+
 <body>
-    <main class="container">
-        <div class="weather-container">
-            <div class="hero">
-                <h1>🌤️ wthr.lol</h1>
-                <p>Weather without the ads, tracking, or BS</p>
+    <main class="weather-container">
+        <div class="hero">
+            <h1>🌤️ wthr.lol</h1>
+            <p>Weather without the ads, tracking, or BS</p>
+        </div>
+
+        <article class="weather-card">
+            <header>
+                <h2>Current Weather</h2>
+            </header>
+
+            <div class="location-input">
+                <input type="text" id="location" placeholder="Enter city name..."
+                    onkeypress="if(event.key === 'Enter') manualLocate()">
+                <button type="button" onclick="manualLocate()">Search</button>
+                <button type="button" id="locate-btn" class="secondary" onclick="locateMe()">📍 Locate Me</button>
             </div>
-            
-            <article class="weather-card">
-                <header>
-                    <h2>Current Weather</h2>
-                </header>
-                
-                <div class="location-input">
-                    <label for="location">
-                        Enter your location:
-                        <input 
-                            type="text" 
-                            id="location" 
-                            name="location" 
-                            placeholder="City name or ZIP code"
-                            data-store-set="location"
-                        >
-                    </label>
-                    <button 
-                        type="button"
-                        data-on-click="$$get('/api/weather')"
-                    >
-                        Get Weather
-                    </button>
-                </div>
-                
-                <div id="weather-display" data-store-get="weather">
-                    <p>Enter a location to see the weather</p>
-                </div>
-            </article>
-            
-            <article>
-                <header>
-                    <h3>About wthr.lol</h3>
-                </header>
-                <p>
-                    A simple, ad-free weather application built with:
+
+            <div id="weather-display">
+                <p style="text-align: center; color: var(--text-secondary);">
+                    Enter a location or click "Locate Me" to get started.
                 </p>
-                <ul>
-                    <li><strong>Backend:</strong> Go + PostgreSQL</li>
-                    <li><strong>Frontend:</strong> HTML + Datastar</li>
-                    <li><strong>Styling:</strong> Pico.css</li>
-                </ul>
+            </div>
+        </article>
+
+        <div style="margin-top: 3rem; opacity: 0.7;">
+            <article>
+                <h3>About wthr.lol</h3>
                 <p>
-                    Because weather information should be fast, clean, and respect your privacy.
+                    A simple, ad-free weather application built with Go + SQLite.
+                    Data provided by <a href="https://www.weather.gov/documentation/services-web-api"
+                        style="color: var(--accent-color)">NWS API</a>.
                 </p>
             </article>
         </div>
     </main>
-    
-    <footer class="container">
-        <small>
-            Made with ☕ | 
-            <a href="https://github.com/swelljoe/wthr.lol">Source on GitHub</a>
-        </small>
-    </footer>
+
+    <script>
+        // Check if we already have permission or should try automatically
+        document.addEventListener('DOMContentLoaded', () => {
+            if (navigator.geolocation) {
+                // Try to get location silently first (only works if permission granted)
+                navigator.permissions.query({ name: 'geolocation' }).then(result => {
+                    if (result.state === 'granted') {
+                        locateMe(true);
+                    } else if (result.state === 'prompt') {
+                        // Optional: Could prompt, but maybe too intrusive? 
+                        // User asked "use location services... ask the user when not".
+                        // So we should basically try it.
+                        locateMe(true);
+                    }
+                });
+            }
+        });
+
+        function locateMe(silent = false) {
+            if (!navigator.geolocation) {
+                if (!silent) alert("Geolocation is not supported by your browser");
+                return;
+            }
+
+            const btn = document.getElementById('locate-btn');
+            const origText = btn.innerText;
+
+            if (!silent) {
+                btn.innerText = "Locating...";
+                btn.disabled = true;
+            }
+
+            navigator.geolocation.getCurrentPosition(
+                (position) => {
+                    const lat = position.coords.latitude;
+                    const lon = position.coords.longitude;
+                    fetchWeather(`lat=${lat}&lon=${lon}`);
+                },
+                (error) => {
+                    // Reset button text and show error if it was NOT a silent attempt that failed
+                    if (!silent) {
+                        alert("Unable to retrieve your location");
+                        btn.innerText = origText;
+                        btn.disabled = false;
+                    } else {
+                        console.log("Auto-location unavailable or denied");
+                    }
+                }
+            );
+        }
+
+        function manualLocate() {
+            const input = document.getElementById('location');
+            const query = input.value;
+            if (!query) return;
+            fetchWeather(`location=${encodeURIComponent(query)}`);
+        }
+
+        function fetchWeather(qs) {
+            const display = document.getElementById('weather-display');
+            display.style.opacity = '0.5';
+
+            fetch(`/api/weather?${qs}`)
+                .then(r => {
+                    if (!r.ok) return r.text().then(t => { throw new Error(t || r.statusText) });
+                    return r.text();
+                })
+                .then(html => {
+                    display.innerHTML = html;
+                    display.style.opacity = '1';
+
+                    // Reset 'Locate Me' btn if it was used
+                    const btn = document.getElementById('locate-btn');
+                    if (btn.disabled) {
+                        btn.innerText = "📍 Locate Me";
+                        btn.disabled = false;
+                    }
+                })
+                .catch(e => {
+                    display.innerHTML = `<div style='text-align:center; padding: 2rem; color: var(--error-color)'>
+                        <h3>Error</h3>
+                        <p></p>
+                    </div>`;
+                    const errorParagraph = display.querySelector('p');
+                    if (errorParagraph) {
+                        errorParagraph.textContent = e.message;
+                    }
+                    display.style.opacity = '1';
+
+                    const btn = document.getElementById('locate-btn');
+                    if (btn.disabled) {
+                        btn.innerText = "📍 Locate Me";
+                        btn.disabled = false;
+                    }
+                });
+        }
+    </script>
 </body>
+
 </html>

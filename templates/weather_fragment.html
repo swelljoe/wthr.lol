@@ -1,0 +1,65 @@
+{{define "weather_fragment"}}
+<div id="weather-display" class="fade-in">
+    <div class="current-weather">
+        <div class="main-info">
+            <span class="material-symbols-rounded weather-icon-large" style="font-size: 80px;">{{.Current.Icon}}</span>
+            <div>
+                <div class="temperature">{{.Current.Temperature}}°{{.Current.TemperatureUnit}}</div>
+                <div class="condition">{{.Current.ShortForecast}}</div>
+                <div class="condition" style="font-size: 0.9rem; margin-top: 0.2rem">H: {{.Current.HighTemp}}° L:
+                    {{.Current.LowTemp}}°</div>
+            </div>
+        </div>
+        <div class="details">
+            <div class="detail-item">
+                <span class="label">Precipitation</span>
+                <span class="value">{{.Current.Precipitation}}%</span>
+            </div>
+            <div class="detail-item">
+                <span class="label">Wind</span>
+                <span class="value">{{.Current.WindSpeed}} {{.Current.WindDirection}}</span>
+            </div>
+        </div>
+    </div>
+
+    {{if .Alerts}}
+    <div class="alerts-section">
+        <h3>⚠️ Severe Weather Alerts</h3>
+        {{range .Alerts}}
+        <div class="alert-card severity-{{.Severity}}">
+            <div class="alert-header">
+                <strong>{{.Event}}</strong>
+                <span class="alert-severity">{{.Severity}}</span>
+            </div>
+            <p>{{.Headline}}</p>
+        </div>
+        {{end}}
+    </div>
+    {{end}}
+
+    <div class="forecast-section">
+        <h3>5-Day Forecast</h3>
+        <div class="forecast-grid">
+            {{range .Forecast}}
+            <div class="forecast-card">
+                <div class="forecast-name">{{.Name}}</div>
+                <span class="material-symbols-rounded weather-icon-small"
+                    style="font-size: 48px; display:block; margin: 0 auto;">{{.Icon}}</span>
+                <div class="forecast-temps">
+                    <span class="high">{{.HighTemp}}°</span>
+                    <span class="low">{{.LowTemp}}°</span>
+                </div>
+                <div class="forecast-meta">
+                    <span class="precip">💧 {{.PrecipChance}}%</span>
+                </div>
+                <div class="forecast-desc">{{.ShortForecast}}</div>
+            </div>
+            {{end}}
+        </div>
+    </div>
+
+    <div class="meta-info">
+        <small>Updated: {{.CachedAt.Format "15:04:05"}}</small>
+    </div>
+</div>
+{{end}}
