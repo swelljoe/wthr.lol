@@ -48,11 +48,16 @@ exit 0
 %post
 %systemd_post wthr.service
 
-# Initialize DB from seed if missing
-if [ ! -f %{_sharedstatedir}/wthr/wthr.db ]; then
-    cp %{_datadir}/wthr/wthr.db.seed %{_sharedstatedir}/wthr/wthr.db
-    chown wthr:wthr %{_sharedstatedir}/wthr/wthr.db
-    chmod 640 %{_sharedstatedir}/wthr/wthr.db
+# Initialize DB from seed if missing, in a symlink-safe way
+DB_PATH=%{_sharedstatedir}/wthr/wthr.db
+
+# Refuse to initialize if DB_PATH is a symlink, to avoid clobbering arbitrary files
+if [ -L "$DB_PATH" ] || [ -h "$DB_PATH" ]; then
+    echo "Refusing to initialize database: $DB_PATH is a symlink" >&2
+else
+    if [ ! -e "$DB_PATH" ]; then
+        install -m 0640 -o wthr -g wthr %{_datadir}/wthr/wthr.db.seed "$DB_PATH"
+    fi
 fi
 
 # Ensure permissions on data dir (in case it existed but permissions were wrong)
