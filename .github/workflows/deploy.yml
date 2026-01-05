@@ -66,5 +66,8 @@ jobs:
           # Copy RPM
           scp $RPM_FILE $USER@$HOST:/tmp/$RPM_NAME
 
-          # Install/Update
-          ssh $USER@$HOST "sudo dnf install -y /tmp/$RPM_NAME && sudo systemctl restart wthr"
+          # Install/Update with verbose output
+          ssh $USER@$HOST "sudo dnf install -y -v /tmp/$RPM_NAME"
+
+          # Restart service after successful install
+          ssh $USER@$HOST "sudo systemctl restart wthr"
