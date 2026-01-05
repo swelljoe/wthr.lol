@@ -63,7 +63,8 @@
             if (navigator.geolocation) {
                 // Try to get location silently first (only works if permission granted)
                 navigator.permissions.query({ name: 'geolocation' }).then(result => {
-                    if (resul                                                locateMe(true);
+                    if (result.state === 'granted') {
+                        locateMe(true);
                     } else if (result.state === 'prompt') {
                         locateMe(true);
                     }
@@ -83,7 +84,7 @@
 
             // Hide on click outside - only add listener once
             if (!clickHandlerAdded) {
-                doistener('click', (e) => {
+                document.addEventListener('click', (e) => {
                     // Get fresh references each time the handler runs
                     const currentInput = document.getElementById('location');
                     const currentList = document.getElementById('suggestions');
@@ -99,17 +100,17 @@
             input.addEventListener('keydown', (e) => {
                 const items = list.querySelectorAll('li');
                 const isListVisible = list.classList.contains('visible');
-                
+
                 if (e.key === 'ArrowDown') {
                     e.preventDefault();
                     if (items.length === 0) return;
-                    
+
                     selectedIndex = (selectedIndex + 1) % items.length;
                     updateHighlight(items);
                 } else if (e.key === 'ArrowUp') {
                     e.preventDefault();
                     if (items.length === 0) return;
-                    
+
                     selectedIndex = selectedIndex <= 0 ? items.length - 1 : selectedIndex - 1;
                     updateHighlight(items);
                 } else if (e.key === 'Enter') {
@@ -183,7 +184,7 @@
         }
 
         function locateMe(silent = false) {
-            if (!navigatoolo {
+            if (!navigator.geolocation) {
                 if (!silent) alert("Geolocation is not supported by your browser");
                 return;
             }
