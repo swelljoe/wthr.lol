@@ -95,10 +95,14 @@
                             if (places && places.length > 0) {
                                 places.forEach(p => {
                                     const li = document.createElement('li');
-                                    li.innerHTML = `
-                                        <span class="place-name">${p.name}</span>
-                                        <span class="place-meta">${p.state} ${p.zip || ''}</span>
-                                    `;
+                                    const nameSpan = document.createElement('span');
+                                    nameSpan.className = 'place-name';
+                                    nameSpan.textContent = p.name;
+                                    const metaSpan = document.createElement('span');
+                                    metaSpan.className = 'place-meta';
+                                    metaSpan.textContent = `${p.state} ${p.zip || ''}`;
+                                    li.appendChild(nameSpan);
+                                    li.appendChild(metaSpan);
                                     li.onclick = () => {
                                         input.value = `${p.name}, ${p.state}`;
                                         list.classList.remove('visible');
