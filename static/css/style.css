@@ -336,7 +336,8 @@ button.secondary:hover {
     border-bottom: none;
 }
 
-.suggestions li:hover {
+.suggestions li:hover,
+.suggestions li.highlighted {
     background: rgba(255, 255, 255, 0.1);
 }
 

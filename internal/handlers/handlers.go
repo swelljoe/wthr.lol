@@ -11,9 +11,15 @@ import (
 	"github.com/swelljoe/wthr.lol/internal/weather"
 )
 
+// Database defines the interface for database operations needed by handlers
+type Database interface {
+	SearchPlaces(query string) ([]db.Place, error)
+	Ping() error
+}
+
 // Handlers holds dependencies for HTTP handlers
 type Handlers struct {
-	db        *db.DB
+	db        Database
 	weather   *weather.Service
 	templates *template.Template
 }
