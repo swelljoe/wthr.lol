@@ -94,8 +94,16 @@ func (h *Handlers) HandleWeatherAPI(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	} else if latStr != "" && lonStr != "" {
-		fmt.Sscanf(latStr, "%f", &lat)
-		fmt.Sscanf(lonStr, "%f", &lon)
+		if _, err = fmt.Sscanf(latStr, "%f", &lat); err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			w.Write([]byte("<div class='error'>Invalid latitude</div>"))
+			return
+		}
+		if _, err = fmt.Sscanf(lonStr, "%f", &lon); err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			w.Write([]byte("<div class='error'>Invalid longitude</div>"))
+			return
+		}
 	} else {
 		w.WriteHeader(http.StatusBadRequest)
 		w.Write([]byte("<div class='error'>Please provide a location</div>"))
