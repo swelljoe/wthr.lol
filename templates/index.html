@@ -23,8 +23,8 @@
             <div class="location-input">
                 <div class="search-container">
                     <input type="text" id="location" placeholder="Enter city or zip..."
-                        onkeypress="if(event.key === 'Enter') manualLocate()" autocomplete="off">
-                    <ul id="suggestions" class="suggestions"></ul>
+                        onkeypress="if(event.key === 'Enter') manualLocate()" autocomplete="off" aria-expanded="false" aria-activedescendant="">
+                    <ul id="suggestions" class="suggestions" role="listbox"></ul>
                 </div>
                 <button type="button" onclick="manualLocate()">Search</button>
                 <button type="button" id="locate-btn" class="secondary" onclick="locateMe()">📍 Locate Me</button>
