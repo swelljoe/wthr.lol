@@ -59,9 +59,6 @@ h3 {
 
 .hero h1 {
     font-size: 3.5rem;
-    background: linear-gradient(to right, var(--primary-color), var(--accent-color));
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
     margin-bottom: 0.5rem;
 }
 
@@ -295,4 +292,61 @@ button.secondary:hover {
     color: #60a5fa;
     /* Light blue for water/precip */
     margin-bottom: 0.25rem;
+}
+
+/* Autocomplete Suggestions */
+.search-container {
+    position: relative;
+    flex: 1;
+}
+
+.suggestions {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: #1e293b;
+    border: 1px solid var(--card-border);
+    border-radius: 0 0 0.75rem 0.75rem;
+    z-index: 100;
+    list-style: none;
+    padding: 0;
+    margin: 0.25rem 0 0 0;
+    max-height: 300px;
+    overflow-y: auto;
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.5);
+    display: none;
+}
+
+.suggestions.visible {
+    display: block;
+}
+
+.suggestions li {
+    padding: 0.75rem 1.25rem;
+    cursor: pointer;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    transition: background-color 0.2s;
+}
+
+.suggestions li:last-child {
+    border-bottom: none;
+}
+
+.suggestions li:hover,
+.suggestions li.highlighted {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.suggestions li .place-name {
+    color: var(--text-primary);
+    font-weight: 500;
+}
+
+.suggestions li .place-meta {
+    color: var(--text-secondary);
+    font-size: 0.875rem;
 }

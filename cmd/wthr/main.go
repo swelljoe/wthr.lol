@@ -47,6 +47,7 @@ func main() {
 	mux.HandleFunc("/", h.HandleIndex)
 	mux.HandleFunc("/health", h.HandleHealth)
 	mux.HandleFunc("/api/weather", h.HandleWeatherAPI)
+	mux.HandleFunc("/api/search", h.HandleSearch)
 
 	// Start server
 	addr := fmt.Sprintf(":%s", port)

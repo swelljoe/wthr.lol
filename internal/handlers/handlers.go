@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"encoding/json"
 	"fmt"
 	"html/template"
 	"log"
@@ -10,9 +11,15 @@ import (
 	"github.com/swelljoe/wthr.lol/internal/weather"
 )
 
+// Database defines the interface for database operations needed by handlers
+type Database interface {
+	SearchPlaces(query string) ([]db.Place, error)
+	Ping() error
+}
+
 // Handlers holds dependencies for HTTP handlers
 type Handlers struct {
-	db        *db.DB
+	db        Database
 	weather   *weather.Service
 	templates *template.Template
 }
@@ -120,5 +127,38 @@ func (h *Handlers) HandleWeatherAPI(w http.ResponseWriter, r *http.Request) {
 
 	if err := h.templates.ExecuteTemplate(w, "weather_fragment", wd); err != nil {
 		log.Printf("Template error: %v", err)
+	}
+}
+
+// HandleSearch performs location autocomplete
+func (h *Handlers) HandleSearch(w http.ResponseWriter, r *http.Request) {
+	q := r.URL.Query().Get("q")
+	if len(q) < 2 {
+		w.Header().Set("Content-Type", "application/json")
+		w.Write([]byte("[]"))
+		return
+	}
+
+	places, err := h.db.SearchPlaces(q)
+	if err != nil {
+		log.Printf("Search error: %v", err)
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		return
+	}
+
+	if places == nil {
+		places = []db.Place{}
+	}
+
+	data, err := json.Marshal(places)
+	if err != nil {
+		log.Printf("JSON encode error: %v", err)
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	if _, err := w.Write(data); err != nil {
+		log.Printf("Response write error: %v", err)
 	}
 }

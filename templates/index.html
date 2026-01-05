@@ -21,8 +21,11 @@
             </header>
 
             <div class="location-input">
-                <input type="text" id="location" placeholder="Enter city name..."
-                    onkeypress="if(event.key === 'Enter') manualLocate()">
+                <div class="search-container">
+                    <input type="text" id="location" placeholder="Enter city or zip..."
+                        onkeypress="if(event.key === 'Enter') manualLocate()" autocomplete="off" aria-expanded="false" aria-activedescendant="">
+                    <ul id="suggestions" class="suggestions" role="listbox"></ul>
+                </div>
                 <button type="button" onclick="manualLocate()">Search</button>
                 <button type="button" id="locate-btn" class="secondary" onclick="locateMe()">📍 Locate Me</button>
             </div>
@@ -49,20 +52,130 @@
     <script>
         // Check if we already have permission or should try automatically
         document.addEventListener('DOMContentLoaded', () => {
+            setupAutocomplete();
+
             if (navigator.geolocation) {
                 // Try to get location silently first (only works if permission granted)
                 navigator.permissions.query({ name: 'geolocation' }).then(result => {
                     if (result.state === 'granted') {
                         locateMe(true);
                     } else if (result.state === 'prompt') {
-                        // Optional: Could prompt, but maybe too intrusive? 
-                        // User asked "use location services... ask the user when not".
-                        // So we should basically try it.
                         locateMe(true);
                     }
                 });
             }
         });
+
+        // Store flag to track if click handler has been added
+        let clickHandlerAdded = false;
+
+        function setupAutocomplete() {
+            const input = document.getElementById('location');
+            const list = document.getElementById('suggestions');
+            let debounceTimer;
+            let selectedIndex = -1;
+            let places = [];
+
+            // Hide on click outside - only add listener once
+            if (!clickHandlerAdded) {
+                document.addEventListener('click', (e) => {
+                    // Get fresh references each time the handler runs
+                    const currentInput = document.getElementById('location');
+                    const currentList = document.getElementById('suggestions');
+                    if (currentInput && currentList &&
+                        !currentInput.contains(e.target) && !currentList.contains(e.target)) {
+                        currentList.classList.remove('visible');
+                    }
+                });
+                clickHandlerAdded = true;
+            }
+
+            // Keyboard navigation
+            input.addEventListener('keydown', (e) => {
+                const items = list.querySelectorAll('li');
+                const isListVisible = list.classList.contains('visible');
+                
+                if (e.key === 'ArrowDown') {
+                    e.preventDefault();
+                    if (items.length === 0) return;
+                    
+                    selectedIndex = (selectedIndex + 1) % items.length;
+                    updateHighlight(items);
+                } else if (e.key === 'ArrowUp') {
+                    e.preventDefault();
+                    if (items.length === 0) return;
+                    
+                    selectedIndex = selectedIndex <= 0 ? items.length - 1 : selectedIndex - 1;
+                    updateHighlight(items);
+                } else if (e.key === 'Enter') {
+                    e.preventDefault();
+                    if (isListVisible && selectedIndex >= 0 && selectedIndex < items.length) {
+                        items[selectedIndex].click();
+                    } else {
+                        manualLocate();
+                    }
+                } else if (e.key === 'Escape') {
+                    e.preventDefault();
+                    list.classList.remove('visible');
+                    selectedIndex = -1;
+                }
+            });
+
+            function updateHighlight(items) {
+                items.forEach((item, idx) => {
+                    if (idx === selectedIndex) {
+                        item.classList.add('highlighted');
+                        item.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+                    } else {
+                        item.classList.remove('highlighted');
+                    }
+                });
+            }
+
+            input.addEventListener('input', (e) => {
+                clearTimeout(debounceTimer);
+                const query = e.target.value.trim();
+                selectedIndex = -1;
+
+                if (query.length < 2) {
+                    list.classList.remove('visible');
+                    return;
+                }
+
+                debounceTimer = setTimeout(() => {
+                    fetch(`/api/search?q=${encodeURIComponent(query)}`)
+                        .then(r => r.json())
+                        .then(data => {
+                            places = data;
+                            list.innerHTML = '';
+                            if (places && places.length > 0) {
+                                places.forEach(p => {
+                                    const li = document.createElement('li');
+                                    const nameSpan = document.createElement('span');
+                                    nameSpan.className = 'place-name';
+                                    nameSpan.textContent = p.name;
+                                    const metaSpan = document.createElement('span');
+                                    metaSpan.className = 'place-meta';
+                                    metaSpan.textContent = `${p.state} ${p.zip || ''}`;
+                                    li.appendChild(nameSpan);
+                                    li.appendChild(metaSpan);
+                                    li.onclick = () => {
+                                        input.value = `${p.name}, ${p.state}`;
+                                        list.classList.remove('visible');
+                                        selectedIndex = -1;
+                                        fetchWeather(`lat=${p.latitude}&lon=${p.longitude}`);
+                                    };
+                                    list.appendChild(li);
+                                });
+                                list.classList.add('visible');
+                            } else {
+                                list.classList.remove('visible');
+                            }
+                        })
+                        .catch(err => console.error(err));
+                }, 300);
+            });
+        }
 
         function locateMe(silent = false) {
             if (!navigator.geolocation) {

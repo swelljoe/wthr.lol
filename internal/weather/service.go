@@ -231,6 +231,7 @@ func mapIcon(iconURL string, isDaytime bool) string {
 
 	return "thermostat"
 }
+
 // Geocode resolves a location string to coordinates
 func (s *Service) Geocode(query string) (float64, float64, error) {
 	return s.client.Geocode(query)

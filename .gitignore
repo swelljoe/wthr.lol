@@ -34,8 +34,10 @@ go.work.sum
 # Build artifacts
 bin/
 /wthr
+/import-geo
 *.log
 
 # Air (live reload)
 tmp/
 .air.toml
+*.db

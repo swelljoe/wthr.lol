@@ -9,8 +9,8 @@ BINARY_PATH=./bin/$(BINARY_NAME)
 
 # Go parameters
 GOCMD=go
-GOBUILD=$(GOCMD) build
-GOTEST=$(GOCMD) test
+GOBUILD=$(GOCMD) build -tags fts5
+GOTEST=$(GOCMD) test -tags fts5
 GOGET=$(GOCMD) get
 GOMOD=$(GOCMD) mod
 GOFMT=$(GOCMD) fmt
