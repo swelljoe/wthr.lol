@@ -69,3 +69,4 @@ chown wthr:wthr %{_sharedstatedir}/wthr
 %{_unitdir}/wthr.service
 %{_datadir}/wthr
 %dir %attr(0750,wthr,wthr) %{_sharedstatedir}/wthr
+%ghost %attr(0640,wthr,wthr) %{_sharedstatedir}/wthr/wthr.db
