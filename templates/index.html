@@ -85,7 +85,7 @@
                     fetchWeather(`lat=${lat}&lon=${lon}`);
                 },
                 (error) => {
-                    // Start default text if it was a silent attempt that failed
+                    // Reset button text and show error if it was NOT a silent attempt that failed
                     if (!silent) {
                         alert("Unable to retrieve your location");
                         resetBtn();
