@@ -6,55 +6,65 @@ on:
       - 'v*'
 
 jobs:
-  build-and-deploy:
+  build:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Set version
-        id: vars
+      - name: Build RPM in Fedora Container
         run: |
-          TAG_REF="${GITHUB_REF#refs/tags/}"
-          VERSION="${TAG_REF#v}"
+          # Extract version from tag
+          VERSION=${GITHUB_REF#refs/tags/v}
 
-          # Ensure VERSION contains only digits and dots (e.g., 1.2.3)
-          if [[ ! "$VERSION" =~ ^[0-9]+(\.[0-9]+)*$ ]]; then
-            echo "Error: Invalid version '$VERSION' derived from tag '$TAG_REF'. Expected digits and dots only (e.g., v1.2.3)." >&2
+          # Validate version format: only digits and dots (e.g., "1.2.3")
+          if ! [[ "$VERSION" =~ ^[0-9]+(\.[0-9]+)*$ ]]; then
+            echo "Error: Invalid version '$VERSION'. Expected format like '1.2.3' from tag 'v1.2.3'."
             exit 1
           fi
+          echo "Building version: $VERSION"
 
-          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
-      - name: Install RPM Tools
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y rpm
+          # Run build in Fedora container to access correct RPM macros/deps
+          docker run --rm -v "$PWD:/src" -w /src -e VERSION=$VERSION fedora:latest /bin/bash -c "
+            set -ex
+            # Install build dependencies
+            dnf install -y rpm-build golang systemd-rpm-macros tar git
 
-      - name: Prepare Source Tarball
-        run: |
-          # Create a directory matching the name-version format
-          mkdir wthr-${{ env.VERSION }}
-          # Copy everything into it
-          cp -r * wthr-${{ env.VERSION }}/ 2>/dev/null || true
-          # Don't copy the directory into itself (trivial exclude)
-          rm -rf wthr-${{ env.VERSION }}/wthr-${{ env.VERSION }}
-          # Tar it up
-          tar czf wthr-${{ env.VERSION }}.tar.gz wthr-${{ env.VERSION }}
+            # Setup Build Environment
+            mkdir -p ~/rpmbuild/{BUILD,RPMS,SOURCES,SPECS,SRPMS}
 
-      - name: Build RPM
-        run: |
-          mkdir -p ~/rpmbuild/{BUILD,RPMS,SOURCES,SPECS,SRPMS}
-          cp wthr-${{ env.VERSION }}.tar.gz ~/rpmbuild/SOURCES/
-          
-          rpmbuild -bb packaging/rpm/wthr.spec \
-            --define "_version ${{ env.VERSION }}" \
-            --define "_topdir $HOME/rpmbuild"
+            # Create Source Tarball
+            # Ensure wthr.db is tracked in git so the RPM spec's expectation is satisfied
+            git ls-files --error-unmatch wthr.db
+            # We transform the paths so they extract into a wthr-VERSION directory to match %setup expectations
+            git ls-files -z | tar --exclude-vcs -czf ~/rpmbuild/SOURCES/wthr-\$VERSION.tar.gz --transform \"s,^,wthr-\$VERSION/,\" --null -T -
 
+            # Build RPM
+            rpmbuild -bb packaging/rpm/wthr.spec \
+              --define \"_version \$VERSION\" \
+              --define \"_topdir ~/rpmbuild\"
+
+            # Output
+            cp ~/rpmbuild/RPMS/*/*.rpm /src/
+          "
+
+          # Fix ownership of generated RPMs on the host
+          sudo chown $(id -u):$(id -g) ./*.rpm
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
           name: wthr-rpm
-          path: ~/rpmbuild/RPMS/*/*.rpm
+          path: ./*.rpm
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: wthr-rpm
+          path: .
 
       - name: Deploy to EC2
         env:
@@ -64,18 +74,17 @@ jobs:
         run: |
           # Setup SSH
           mkdir -p ~/.ssh
-          # Ensure the private key is removed when this step finishes (successfully or on error)
-          trap 'rm -f ~/.ssh/id_rsa' EXIT
           echo "$SSH_PRIVATE_KEY" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
+          trap 'rm -f ~/.ssh/id_rsa' EXIT
           ssh-keyscan -H $HOST >> ~/.ssh/known_hosts
 
           # Find the RPM file
-          RPM_FILE=$(find ~/rpmbuild/RPMS -name "*.rpm")
-          RPM_NAME=$(basename $RPM_FILE)
+          RPM_FILE=$(ls *.rpm)
+          echo "Deploying $RPM_FILE..."
 
           # Copy RPM
-          scp $RPM_FILE $USER@$HOST:/tmp/$RPM_NAME
+          scp $RPM_FILE $USER@$HOST:/tmp/$RPM_FILE
 
           # Install/Update - RPM triggers restart automatically via %postun_with_restart
-          ssh $USER@$HOST "sudo dnf install -y -v /tmp/$RPM_NAME"
+          ssh $USER@$HOST "sudo dnf install -vy /tmp/$RPM_FILE"
