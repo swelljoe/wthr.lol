@@ -49,10 +49,9 @@ exit 0
 %systemd_post wthr.service
 
 # Initialize DB from seed if missing
-if [ ! -f %{_sharedstatedir}/wthr/wthr.db ]; then
-    cp %{_datadir}/wthr/wthr.db.seed %{_sharedstatedir}/wthr/wthr.db
-    chown wthr:wthr %{_sharedstatedir}/wthr/wthr.db
-    chmod 640 %{_sharedstatedir}/wthr/wthr.db
+# Only create if target is not a symlink and file doesn't exist
+if [ ! -L %{_sharedstatedir}/wthr/wthr.db ] && [ ! -e %{_sharedstatedir}/wthr/wthr.db ]; then
+    install -m 0640 -o wthr -g wthr %{_datadir}/wthr/wthr.db.seed %{_sharedstatedir}/wthr/wthr.db
 fi
 
 # Ensure permissions on data dir (in case it existed but permissions were wrong)
@@ -69,3 +68,4 @@ chown wthr:wthr %{_sharedstatedir}/wthr
 %{_unitdir}/wthr.service
 %{_datadir}/wthr
 %dir %attr(0750,wthr,wthr) %{_sharedstatedir}/wthr
+%ghost %attr(0640,wthr,wthr) %{_sharedstatedir}/wthr/wthr.db
