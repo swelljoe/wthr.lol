@@ -96,6 +96,18 @@ View all available commands:
 make help
 ```
 
+
+## Deployment
+
+When installing via RPM, the configuration file is located at `/etc/default/wthr`.
+
+You **must** configure the `NWS_USER_AGENT` in this file to comply with National Weather Service API usage guidelines.
+
+```bash
+# /etc/default/wthr
+NWS_USER_AGENT=my-app.com/1.0 (me@example.com)
+```
+
 ## License
 
 See [LICENSE](LICENSE) for details.

@@ -1,0 +1,11 @@
+# wthr.lol configuration
+#
+# User Agent for NWS API requests (Required)
+# See: https://www.weather.gov/documentation/services-web-api
+NWS_USER_AGENT=wthr.lol/1.0 (contact@example.tld)
+
+# Port to listen on (Default: 8080)
+PORT=8080
+
+# Path to database (Default: /var/lib/wthr/wthr.db)
+# DB_PATH=/var/lib/wthr/wthr.db

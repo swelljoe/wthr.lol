@@ -38,6 +38,9 @@ install -D -m 0644 wthr.db %{buildroot}%{_datadir}/wthr/wthr.db.seed
 # Systemd Unit
 install -D -m 0644 packaging/systemd/wthr.service %{buildroot}%{_unitdir}/wthr.service
 
+# Default Configuration
+install -D -m 0644 packaging/etc/default/wthr %{buildroot}/etc/default/wthr
+
 # Data Directory
 mkdir -p %{buildroot}%{_sharedstatedir}/wthr
 
@@ -70,6 +73,7 @@ chown wthr:wthr %{_sharedstatedir}/wthr
 %files
 %{_bindir}/wthr
 %{_unitdir}/wthr.service
+%config(noreplace) /etc/default/wthr
 %{_datadir}/wthr
 %dir %attr(0750,wthr,wthr) %{_sharedstatedir}/wthr
 %ghost %attr(0640,wthr,wthr) %{_sharedstatedir}/wthr/wthr.db

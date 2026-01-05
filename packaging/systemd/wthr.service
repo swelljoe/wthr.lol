@@ -10,6 +10,7 @@ User=wthr
 Group=wthr
 # Set working directory so static/ and templates/ are found
 WorkingDirectory=/usr/share/wthr
+EnvironmentFile=-/etc/default/wthr
 # Point to mutable database in /var/lib
 Environment=DB_PATH=/var/lib/wthr/wthr.db
 Environment=PORT=8080
