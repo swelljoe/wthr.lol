@@ -1,0 +1,19 @@
+[Unit]
+Description=wthr.lol Weather Service
+After=network.target
+
+[Service]
+Type=simple
+User=wthr
+Group=wthr
+# Set working directory so static/ and templates/ are found
+WorkingDirectory=/usr/share/wthr
+# Point to mutable database in /var/lib
+Environment=DB_PATH=/var/lib/wthr/wthr.db
+Environment=PORT=8080
+ExecStart=/usr/bin/wthr
+Restart=always
+RestartSec=5s
+
+[Install]
+WantedBy=multi-user.target
