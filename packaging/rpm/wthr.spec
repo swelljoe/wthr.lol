@@ -5,6 +5,7 @@ Summary:    No-BS Weather App
 License:    MIT
 URL:        https://wthr.lol
 Source0:    %{name}-%{version}.tar.gz
+%global debug_package %{nil}
 
 BuildRequires: golang
 BuildRequires: systemd-rpm-macros
