@@ -98,11 +98,10 @@
                     selectedIndex = selectedIndex <= 0 ? items.length - 1 : selectedIndex - 1;
                     updateHighlight(items);
                 } else if (e.key === 'Enter') {
+                    e.preventDefault();
                     if (isListVisible && selectedIndex >= 0 && selectedIndex < items.length) {
-                        e.preventDefault();
                         items[selectedIndex].click();
-                    } else if (!isListVisible || selectedIndex === -1) {
-                        e.preventDefault();
+                    } else {
                         manualLocate();
                     }
                 } else if (e.key === 'Escape') {
