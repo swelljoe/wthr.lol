@@ -37,22 +37,29 @@ jobs:
             git config --global --add safe.directory /src
 
             # Populate wthr.db
-            echo "Populating wthr.db..."
+            echo "--- Building import-geo ---"
             go build -v -o bin/import-geo ./cmd/import-geo
-            ./bin/import-geo
             
+            echo "--- Running import-geo ---"
+            # Increase verbosity or check for errors
+            ./bin/import-geo || { echo "import-geo failed"; exit 1; }
+            ls -lh wthr.db
+            
+            echo "--- Creating Tarball ---"
             # Create Source Tarball
             # We transform the paths so they extract into a wthr-VERSION directory to match %setup expectations
             # Manually select files instead of using git ls-files, so we include our generated wthr.db
             tar --exclude-vcs -czf ~/rpmbuild/SOURCES/wthr-\$VERSION.tar.gz --transform \"s,^,wthr-\$VERSION/,\" .
-
-            # Build RPM
+            
+            echo "--- Building RPM ---"
             rpmbuild -bb packaging/rpm/wthr.spec \
               --define \"_version \$VERSION\" \
-              --define \"_topdir ~/rpmbuild\"
+              --define \"_topdir \$HOME/rpmbuild\" || { echo "rpmbuild failed"; exit 1; }
 
-            # Output
-            cp ~/rpmbuild/RPMS/*/*.rpm /src/
+            echo "--- Copying Artifacts ---"
+            # Check if RPMs exist
+            ls -R ~/rpmbuild/RPMS/
+            cp ~/rpmbuild/RPMS/*/*.rpm /src/ || { echo "Copy failed - no RPMs found"; exit 1; }
           "
 
           # Fix ownership of generated RPMs on the host
