@@ -225,17 +225,18 @@ func sanitizeFTSTerm(term string) string {
 	// Keep alphanumeric, spaces, and some common punctuation
 	var result strings.Builder
 	for _, r := range term {
-		switch r {
-		case '"', '(', ')', '*', '^':
-			// Skip special FTS5 characters
+		// Skip FTS5 special characters that have syntactic meaning
+		if r == '"' || r == '(' || r == ')' || r == '*' || r == '^' {
 			continue
-		default:
-			// Keep alphanumeric and other safe characters
-			if (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') ||
-				(r >= '0' && r <= '9') || r == ' ' || r == '-' || r == '.' {
-				result.WriteRune(r)
-			}
 		}
+		// Keep letters, digits, spaces, hyphens, and periods
+		// Using direct comparisons for ASCII punctuation while supporting Unicode letters/digits
+		if r == ' ' || r == '-' || r == '.' {
+			result.WriteRune(r)
+		} else if (r >= '0' && r <= '9') || (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') {
+			result.WriteRune(r)
+		}
+		// Note: We intentionally keep ASCII-only to avoid issues with Unicode characters in FTS5
 	}
 	return strings.TrimSpace(result.String())
 }

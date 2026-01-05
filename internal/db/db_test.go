@@ -2,7 +2,6 @@ package db
 
 import (
 	"database/sql"
-	"os"
 	"testing"
 )
 
@@ -227,11 +226,10 @@ func TestSearchPlacesErrorMessages(t *testing.T) {
 
 func TestNewDB(t *testing.T) {
 	// Test with a temporary database file
-	tmpFile := "/tmp/test_wthr.db"
-	defer os.Remove(tmpFile)
+	tmpDir := t.TempDir()
+	tmpFile := tmpDir + "/test_wthr.db"
 
-	os.Setenv("DB_PATH", tmpFile)
-	defer os.Unsetenv("DB_PATH")
+	t.Setenv("DB_PATH", tmpFile)
 
 	db, err := NewDB()
 	if err != nil {
