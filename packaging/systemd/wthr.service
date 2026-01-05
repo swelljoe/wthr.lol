@@ -14,6 +14,12 @@ Environment=PORT=8080
 ExecStart=/usr/bin/wthr
 Restart=always
 RestartSec=5s
+# Security hardening directives
+PrivateTmp=true
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/wthr
 
 [Install]
 WantedBy=multi-user.target
