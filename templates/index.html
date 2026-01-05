@@ -6,6 +6,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>wthr.lol - Weather Without the BS</title>
     <link rel="stylesheet" href="/static/css/style.css">
+    <link rel="manifest" href="/static/manifest.json">
+    <meta name="theme-color" content="#ffffff">
 </head>
 
 <body>
@@ -23,7 +25,8 @@
             <div class="location-input">
                 <div class="search-container">
                     <input type="text" id="location" placeholder="Enter city or zip..."
-                        onkeypress="if(event.key === 'Enter') manualLocate()" autocomplete="off" aria-expanded="false" aria-activedescendant="">
+                        onkeypress="if(event.key === 'Enter') manualLocate()" autocomplete="off" aria-expanded="false"
+                        aria-activedescendant="">
                     <ul id="suggestions" class="suggestions" role="listbox"></ul>
                 </div>
                 <button type="button" onclick="manualLocate()">Search</button>
@@ -52,13 +55,15 @@
     <script>
         // Check if we already have permission or should try automatically
         document.addEventListener('DOMContentLoaded', () => {
+            if ('serviceWorker' in navigator) {
+                navigator.serviceWorker.register('/sw.js');
+            }
             setupAutocomplete();
 
             if (navigator.geolocation) {
                 // Try to get location silently first (only works if permission granted)
                 navigator.permissions.query({ name: 'geolocation' }).then(result => {
-                    if (result.state === 'granted') {
-                        locateMe(true);
+                    if (resul                                                locateMe(true);
                     } else if (result.state === 'prompt') {
                         locateMe(true);
                     }
@@ -78,7 +83,7 @@
 
             // Hide on click outside - only add listener once
             if (!clickHandlerAdded) {
-                document.addEventListener('click', (e) => {
+                doistener('click', (e) => {
                     // Get fresh references each time the handler runs
                     const currentInput = document.getElementById('location');
                     const currentList = document.getElementById('suggestions');
@@ -178,7 +183,7 @@
         }
 
         function locateMe(silent = false) {
-            if (!navigator.geolocation) {
+            if (!navigatoolo {
                 if (!silent) alert("Geolocation is not supported by your browser");
                 return;
             }

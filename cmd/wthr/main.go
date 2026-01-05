@@ -42,6 +42,15 @@ func main() {
 	fs := http.FileServer(http.Dir("static"))
 	mux.Handle("/static/", http.StripPrefix("/static/", fs))
 
+	// Serve service worker from root for scope
+	mux.HandleFunc("/sw.js", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/javascript")
+		http.ServeFile(w, r, "static/sw.js")
+	})
+
+	// Serve .well-known for Digital Asset Links
+	mux.Handle("/.well-known/", http.StripPrefix("/.well-known/", http.FileServer(http.Dir("static/.well-known"))))
+
 	// Setup handlers
 	h := handlers.New(database, wService)
 	mux.HandleFunc("/", h.HandleIndex)
