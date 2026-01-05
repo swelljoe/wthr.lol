@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"os"
 	"time"
 )
@@ -149,8 +150,14 @@ type GeocodeResponse []struct {
 
 // Geocode fetches coordinates for a location string using OpenStreetMap
 func (c *Client) Geocode(query string) (float64, float64, error) {
-	url := fmt.Sprintf("https://nominatim.openstreetmap.org/search?q=%s&format=json&limit=1", query)
-	data, err := c.get(url)
+	baseURL := "https://nominatim.openstreetmap.org/search"
+	params := url.Values{}
+	params.Set("q", query)
+	params.Set("format", "json")
+	params.Set("limit", "1")
+	requestURL := baseURL + "?" + params.Encode()
+
+	data, err := c.get(requestURL)
 	if err != nil {
 		return 0, 0, err
 	}
