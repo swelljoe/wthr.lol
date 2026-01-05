@@ -51,7 +51,7 @@ jobs:
         env:
           SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
           HOST: deploy.wthr.lol
-          USER: ec2-user
+          USER: deploy
         run: |
           # Setup SSH
           mkdir -p ~/.ssh
@@ -66,5 +66,5 @@ jobs:
           # Copy RPM
           scp $RPM_FILE $USER@$HOST:/tmp/$RPM_NAME
 
-          # Install/Update
-          ssh $USER@$HOST "sudo dnf install -y /tmp/$RPM_NAME && sudo systemctl restart wthr"
+          # Install/Update - RPM triggers restart automatically via %postun_with_restart
+          ssh $USER@$HOST "sudo dnf install -y /tmp/$RPM_NAME"
