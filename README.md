@@ -2,18 +2,17 @@
 
 Because I'm tired of ad-filled weather sites and apps
 
-A simple, ad-free weather application built with Go, PostgreSQL, HTML, Datastar, and Pico.css.
+A simple, ad-free weather application built with Go, SQLite, HTML, Datastar, and Pico.css.
 
 ## Features
 
-- **Clean UI**: Modern, responsive design using Pico.css
-- **No Ads**: Just weather information, nothing else
-- **Privacy-focused**: No tracking or data collection
-- **Fast**: Built with Go for optimal performance
+- No bullshit, just weather.
+- No ads, no tracking.
+- That's right, just weather.
 
 ## Tech Stack
 
-- **Backend**: Go + PostgreSQL
+- **Backend**: Go + SQLite
 - **Frontend**: HTML + Datastar
 - **Styling**: Pico.css
 
@@ -37,7 +36,6 @@ wthr.lol/
 ### Prerequisites
 
 - Go 1.24 or later
-- PostgreSQL (optional for development)
 
 ### Installation
 
@@ -57,13 +55,7 @@ make mod-download
 The application can be configured using environment variables:
 
 - `PORT`: Server port (default: 8080)
-- `DATABASE_URL`: PostgreSQL connection string
-- Or individual database settings:
-  - `DB_HOST`: Database host (default: localhost)
-  - `DB_PORT`: Database port (default: 5432)
-  - `DB_USER`: Database user (default: postgres)
-  - `DB_PASSWORD`: Database password (default: postgres)
-  - `DB_NAME`: Database name (default: wthr)
+- `NWS_USER_AGENT`: User-Agent to use when fetching place data from government sources (e.g. `example.tld/1.0 (contact@example.tld)`)
 
 ### Development
 
