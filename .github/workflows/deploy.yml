@@ -42,7 +42,7 @@ jobs:
             # Build RPM
             rpmbuild -bb packaging/rpm/wthr.spec \
               --define \"_version \$VERSION\" \
-              --define \"_topdir \$HOME/rpmbuild\"
+              --define \"_topdir ~/rpmbuild\"
 
             # Output
             cp ~/rpmbuild/RPMS/*/*.rpm /src/
