@@ -144,8 +144,15 @@ func (h *Handlers) HandleSearch(w http.ResponseWriter, r *http.Request) {
 		places = []db.Place{}
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	if err := json.NewEncoder(w).Encode(places); err != nil {
+	data, err := json.Marshal(places)
+	if err != nil {
 		log.Printf("JSON encode error: %v", err)
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	if _, err := w.Write(data); err != nil {
+		log.Printf("Response write error: %v", err)
 	}
 }
