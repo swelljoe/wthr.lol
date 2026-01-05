@@ -40,9 +40,10 @@ jobs:
 
             # Output
             cp ~/rpmbuild/RPMS/*/*.rpm /src/
-            chown $(id -u):$(id -g) /src/*.rpm
           "
 
+          # Fix ownership of generated RPMs on the host
+          sudo chown $(id -u):$(id -g) ./*.rpm
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
