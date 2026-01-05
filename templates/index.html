@@ -88,19 +88,13 @@
                     // Reset button text and show error if it was NOT a silent attempt that failed
                     if (!silent) {
                         alert("Unable to retrieve your location");
-                        resetBtn();
+                        btn.innerText = origText;
+                        btn.disabled = false;
                     } else {
                         console.log("Auto-location unavailable or denied");
                     }
                 }
             );
-
-            function resetBtn() {
-                if (!silent) {
-                    btn.innerText = origText;
-                    btn.disabled = false;
-                }
-            }
         }
 
         function manualLocate() {
