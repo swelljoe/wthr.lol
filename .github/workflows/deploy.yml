@@ -36,11 +36,15 @@ jobs:
             # Fix git ownership issue since we are mounting the runner's workspace
             git config --global --add safe.directory /src
 
+            # Populate wthr.db
+            echo "Populating wthr.db..."
+            go build -v -o bin/import-geo ./cmd/import-geo
+            ./bin/import-geo
+            
             # Create Source Tarball
-            # Ensure wthr.db is tracked in git so the RPM spec's expectation is satisfied
-            git ls-files --error-unmatch wthr.db
             # We transform the paths so they extract into a wthr-VERSION directory to match %setup expectations
-            git ls-files -z | tar --exclude-vcs -czf ~/rpmbuild/SOURCES/wthr-\$VERSION.tar.gz --transform \"s,^,wthr-\$VERSION/,\" --null -T -
+            # Manually select files instead of using git ls-files, so we include our generated wthr.db
+            tar --exclude-vcs -czf ~/rpmbuild/SOURCES/wthr-\$VERSION.tar.gz --transform \"s,^,wthr-\$VERSION/,\" .
 
             # Build RPM
             rpmbuild -bb packaging/rpm/wthr.spec \
