@@ -1,3 +1,5 @@
+![screenshot of wthr.lol showing weather in Los Angeles, CA](https://raw.githubusercontent.com/swelljoe/wthr.lol/refs/heads/main/docs/images/LA-wthr.png)
+
 # wthr.lol
 
 Because I'm tired of ad-filled weather sites and apps
