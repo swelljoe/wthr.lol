@@ -78,4 +78,4 @@ jobs:
           scp $RPM_FILE $USER@$HOST:/tmp/$RPM_NAME
 
           # Install/Update - RPM triggers restart automatically via %postun_with_restart
-          ssh $USER@$HOST "sudo dnf install -y /tmp/$RPM_NAME"
+          ssh $USER@$HOST "sudo dnf install -y -v /tmp/$RPM_NAME"
