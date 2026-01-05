@@ -39,3 +39,4 @@ bin/
 # Air (live reload)
 tmp/
 .air.toml
+*.db
