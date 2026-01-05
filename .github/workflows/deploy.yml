@@ -25,7 +25,7 @@ jobs:
           echo "Building version: $VERSION"
 
           # Run build in Fedora container to access correct RPM macros/deps
-          docker run --rm -v $PWD:/src -w /src -e VERSION=$VERSION fedora:latest /bin/bash -c "
+          docker run --rm -v "$PWD:/src" -w /src -e VERSION=$VERSION fedora:latest /bin/bash -c "
             set -ex
             # Install build dependencies
             dnf install -y rpm-build golang systemd-rpm-macros tar git
