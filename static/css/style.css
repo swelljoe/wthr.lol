@@ -25,6 +25,7 @@
     --card-border: rgba(255, 255, 255, 0.1);
     --text-primary: #f8fafc;
     --text-secondary: #94a3b8;
+    --error-color: #ef4444;
 }
 
 body {
