@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"github.com/swelljoe/wthr.lol/internal/db"
@@ -157,7 +158,14 @@ func importPlaces(db *sql.DB, r io.Reader) error {
 		// Clean name: remove " city", " town", etc.
 		name := cleanPlaceName(rawName)
 
-		_, err = stmt.Exec(name, state, latStr, lonStr)
+		// Parse and validate coordinates
+		lat, lon, err := parseAndValidateCoordinates(latStr, lonStr)
+		if err != nil {
+			log.Printf("Error parsing coordinates for %s: %v", name, err)
+			continue
+		}
+
+		_, err = stmt.Exec(name, state, lat, lon)
 		if err != nil {
 			log.Printf("Error inserting %s: %v", name, err)
 			continue
@@ -215,7 +223,14 @@ func importZCTAs(db *sql.DB, r io.Reader) error {
 		latStr := strings.TrimSpace(record[5])
 		lonStr := strings.TrimSpace(record[6])
 
-		_, err = stmt.Exec(zipCode, zipCode, "", latStr, lonStr)
+		// Parse and validate coordinates
+		lat, lon, err := parseAndValidateCoordinates(latStr, lonStr)
+		if err != nil {
+			log.Printf("Error parsing coordinates for ZIP %s: %v", zipCode, err)
+			continue
+		}
+
+		_, err = stmt.Exec(zipCode, zipCode, "", lat, lon)
 		if err != nil {
 			log.Printf("Error inserting ZIP %s: %v", zipCode, err)
 			continue
@@ -238,4 +253,27 @@ func cleanPlaceName(name string) string {
 		}
 	}
 	return name
+}
+
+// parseAndValidateCoordinates parses and validates latitude and longitude strings
+func parseAndValidateCoordinates(latStr, lonStr string) (float64, float64, error) {
+	// Parse latitude
+	lat, err := strconv.ParseFloat(latStr, 64)
+	if err != nil {
+		return 0, 0, fmt.Errorf("invalid latitude: %w", err)
+	}
+	if lat < -90 || lat > 90 {
+		return 0, 0, fmt.Errorf("latitude out of range: %f", lat)
+	}
+
+	// Parse longitude
+	lon, err := strconv.ParseFloat(lonStr, 64)
+	if err != nil {
+		return 0, 0, fmt.Errorf("invalid longitude: %w", err)
+	}
+	if lon < -180 || lon > 180 {
+		return 0, 0, fmt.Errorf("longitude out of range: %f", lon)
+	}
+
+	return lat, lon, nil
 }
