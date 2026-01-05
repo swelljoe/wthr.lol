@@ -55,6 +55,8 @@ jobs:
         run: |
           # Setup SSH
           mkdir -p ~/.ssh
+          # Ensure the private key is removed when this step finishes (successfully or on error)
+          trap 'rm -f ~/.ssh/id_rsa' EXIT
           echo "$SSH_PRIVATE_KEY" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
           ssh-keyscan -H $HOST >> ~/.ssh/known_hosts
