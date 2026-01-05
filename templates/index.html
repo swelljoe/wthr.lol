@@ -22,8 +22,7 @@
 
             <div class="location-input">
                 <div class="search-container">
-                    <input type="text" id="location" placeholder="Enter city or zip..."
-                        onkeypress="if(event.key === 'Enter') manualLocate()" autocomplete="off">
+                    <input type="text" id="location" placeholder="Enter city or zip..." autocomplete="off">
                     <ul id="suggestions" class="suggestions"></ul>
                 </div>
                 <button type="button" onclick="manualLocate()">Search</button>
@@ -70,17 +69,64 @@
             const input = document.getElementById('location');
             const list = document.getElementById('suggestions');
             let debounceTimer;
+            let selectedIndex = -1;
+            let places = [];
 
             // Hide on click outside
             document.addEventListener('click', (e) => {
                 if (!input.contains(e.target) && !list.contains(e.target)) {
                     list.classList.remove('visible');
+                    selectedIndex = -1;
                 }
             });
+
+            // Keyboard navigation
+            input.addEventListener('keydown', (e) => {
+                const items = list.querySelectorAll('li');
+                const isListVisible = list.classList.contains('visible');
+                
+                if (e.key === 'ArrowDown') {
+                    e.preventDefault();
+                    if (items.length === 0) return;
+                    
+                    selectedIndex = (selectedIndex + 1) % items.length;
+                    updateHighlight(items);
+                } else if (e.key === 'ArrowUp') {
+                    e.preventDefault();
+                    if (items.length === 0) return;
+                    
+                    selectedIndex = selectedIndex <= 0 ? items.length - 1 : selectedIndex - 1;
+                    updateHighlight(items);
+                } else if (e.key === 'Enter') {
+                    if (isListVisible && selectedIndex >= 0 && selectedIndex < items.length) {
+                        e.preventDefault();
+                        items[selectedIndex].click();
+                    } else if (!isListVisible || selectedIndex === -1) {
+                        e.preventDefault();
+                        manualLocate();
+                    }
+                } else if (e.key === 'Escape') {
+                    e.preventDefault();
+                    list.classList.remove('visible');
+                    selectedIndex = -1;
+                }
+            });
+
+            function updateHighlight(items) {
+                items.forEach((item, idx) => {
+                    if (idx === selectedIndex) {
+                        item.classList.add('highlighted');
+                        item.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+                    } else {
+                        item.classList.remove('highlighted');
+                    }
+                });
+            }
 
             input.addEventListener('input', (e) => {
                 clearTimeout(debounceTimer);
                 const query = e.target.value.trim();
+                selectedIndex = -1;
 
                 if (query.length < 2) {
                     list.classList.remove('visible');
@@ -90,7 +136,8 @@
                 debounceTimer = setTimeout(() => {
                     fetch(`/api/search?q=${encodeURIComponent(query)}`)
                         .then(r => r.json())
-                        .then(places => {
+                        .then(data => {
+                            places = data;
                             list.innerHTML = '';
                             if (places && places.length > 0) {
                                 places.forEach(p => {
@@ -106,6 +153,7 @@
                                     li.onclick = () => {
                                         input.value = `${p.name}, ${p.state}`;
                                         list.classList.remove('visible');
+                                        selectedIndex = -1;
                                         fetchWeather(`lat=${p.latitude}&lon=${p.longitude}`);
                                     };
                                     list.appendChild(li);
