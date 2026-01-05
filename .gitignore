@@ -41,3 +41,6 @@ bin/
 tmp/
 .air.toml
 *.db
+
+# Android keystore
+andruid.keystore
