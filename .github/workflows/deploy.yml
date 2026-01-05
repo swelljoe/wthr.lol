@@ -14,8 +14,17 @@ jobs:
 
       - name: Set version
         id: vars
-        run: echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_ENV
+        run: |
+          TAG_REF="${GITHUB_REF#refs/tags/}"
+          VERSION="${TAG_REF#v}"
 
+          # Ensure VERSION contains only digits and dots (e.g., 1.2.3)
+          if [[ ! "$VERSION" =~ ^[0-9]+(\.[0-9]+)*$ ]]; then
+            echo "Error: Invalid version '$VERSION' derived from tag '$TAG_REF'. Expected digits and dots only (e.g., v1.2.3)." >&2
+            exit 1
+          fi
+
+          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
       - name: Install RPM Tools
         run: |
           sudo apt-get update
