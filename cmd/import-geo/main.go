@@ -155,25 +155,10 @@ func importPlaces(db *sql.DB, r io.Reader) error {
 		// Clean name: remove " city", " town", etc.
 		name := cleanPlaceName(rawName)
 
-		// Parse and validate latitude
-		lat, err := strconv.ParseFloat(latStr, 64)
+		// Parse and validate coordinates
+		lat, lon, err := parseAndValidateCoordinates(latStr, lonStr)
 		if err != nil {
-			log.Printf("Error parsing latitude for %s: %v", name, err)
-			continue
-		}
-		if lat < -90 || lat > 90 {
-			log.Printf("Invalid latitude for %s: %f", name, lat)
-			continue
-		}
-
-		// Parse and validate longitude
-		lon, err := strconv.ParseFloat(lonStr, 64)
-		if err != nil {
-			log.Printf("Error parsing longitude for %s: %v", name, err)
-			continue
-		}
-		if lon < -180 || lon > 180 {
-			log.Printf("Invalid longitude for %s: %f", name, lon)
+			log.Printf("Error parsing coordinates for %s: %v", name, err)
 			continue
 		}
 
@@ -235,25 +220,10 @@ func importZCTAs(db *sql.DB, r io.Reader) error {
 		latStr := strings.TrimSpace(record[5])
 		lonStr := strings.TrimSpace(record[6])
 
-		// Parse and validate latitude
-		lat, err := strconv.ParseFloat(latStr, 64)
+		// Parse and validate coordinates
+		lat, lon, err := parseAndValidateCoordinates(latStr, lonStr)
 		if err != nil {
-			log.Printf("Error parsing latitude for ZIP %s: %v", zipCode, err)
-			continue
-		}
-		if lat < -90 || lat > 90 {
-			log.Printf("Invalid latitude for ZIP %s: %f", zipCode, lat)
-			continue
-		}
-
-		// Parse and validate longitude
-		lon, err := strconv.ParseFloat(lonStr, 64)
-		if err != nil {
-			log.Printf("Error parsing longitude for ZIP %s: %v", zipCode, err)
-			continue
-		}
-		if lon < -180 || lon > 180 {
-			log.Printf("Invalid longitude for ZIP %s: %f", zipCode, lon)
+			log.Printf("Error parsing coordinates for ZIP %s: %v", zipCode, err)
 			continue
 		}
 
@@ -280,4 +250,27 @@ func cleanPlaceName(name string) string {
 		}
 	}
 	return name
+}
+
+// parseAndValidateCoordinates parses and validates latitude and longitude strings
+func parseAndValidateCoordinates(latStr, lonStr string) (float64, float64, error) {
+	// Parse latitude
+	lat, err := strconv.ParseFloat(latStr, 64)
+	if err != nil {
+		return 0, 0, fmt.Errorf("invalid latitude: %w", err)
+	}
+	if lat < -90 || lat > 90 {
+		return 0, 0, fmt.Errorf("latitude out of range: %f", lat)
+	}
+
+	// Parse longitude
+	lon, err := strconv.ParseFloat(lonStr, 64)
+	if err != nil {
+		return 0, 0, fmt.Errorf("invalid longitude: %w", err)
+	}
+	if lon < -180 || lon > 180 {
+		return 0, 0, fmt.Errorf("longitude out of range: %f", lon)
+	}
+
+	return lat, lon, nil
 }
