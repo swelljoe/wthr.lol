@@ -1,0 +1,5 @@
+# /etc/sudoers.d/wthr-deploy
+# Allow 'deploy' user to install the wthr RPM.
+# The RPM handles restarting the service via systemd triggers.
+
+deploy ALL=(root) NOPASSWD: /usr/bin/dnf install -y /tmp/wthr-*.rpm
