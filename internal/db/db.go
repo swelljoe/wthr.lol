@@ -169,12 +169,19 @@ func (db *DB) SearchPlaces(query string) ([]Place, error) {
 	// e.g. "San Fran" -> "San* AND Fran*"
 	var ftsParts []string
 	for _, term := range terms {
-		// sanitizing: remove purely non-alphanumeric if necessary, but FTS5 handles most utf8
-		// Just ensure we don't break the query syntax.
-		// A simple way is to wrap in quotes if it contains special chars,
-		// but simple appending * is usually fine for "normal" input.
-		ftsParts = append(ftsParts, "\""+term+"\"*") // Prefix match on the phrase
+		// Sanitize term: escape double quotes and remove characters that could break FTS5 syntax
+		// FTS5 special characters include: " ( ) AND OR NOT NEAR
+		sanitized := sanitizeFTSTerm(term)
+		if sanitized == "" {
+			continue // Skip empty terms after sanitization
+		}
+		ftsParts = append(ftsParts, sanitized+"*") // Prefix match
 	}
+
+	if len(ftsParts) == 0 {
+		return nil, nil
+	}
+
 	ftsQuery := strings.Join(ftsParts, " AND ")
 
 	q := `
@@ -188,7 +195,8 @@ func (db *DB) SearchPlaces(query string) ([]Place, error) {
 
 	rows, err := db.Query(q, ftsQuery)
 	if err != nil {
-		return nil, err
+		// Provide more context about the error, especially for FTS5 query issues
+		return nil, fmt.Errorf("failed to execute search query (query: %q): %w", ftsQuery, err)
 	}
 	defer rows.Close()
 
@@ -197,10 +205,37 @@ func (db *DB) SearchPlaces(query string) ([]Place, error) {
 		var p Place
 		var zip sql.NullString
 		if err := rows.Scan(&p.Name, &p.State, &zip, &p.Latitude, &p.Longitude); err != nil {
-			return nil, err
+			return nil, fmt.Errorf("failed to scan search result: %w", err)
 		}
 		p.Zip = zip.String
 		places = append(places, p)
 	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("error iterating search results: %w", err)
+	}
+
 	return places, nil
+}
+
+// sanitizeFTSTerm sanitizes a search term for use in FTS5 queries
+// It removes or escapes characters that have special meaning in FTS5
+func sanitizeFTSTerm(term string) string {
+	// Remove FTS5 operators and special characters that could break the query
+	// Keep alphanumeric, spaces, and some common punctuation
+	var result strings.Builder
+	for _, r := range term {
+		switch r {
+		case '"', '(', ')', '*', '^':
+			// Skip special FTS5 characters
+			continue
+		default:
+			// Keep alphanumeric and other safe characters
+			if (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') ||
+				(r >= '0' && r <= '9') || r == ' ' || r == '-' || r == '.' {
+				result.WriteRune(r)
+			}
+		}
+	}
+	return strings.TrimSpace(result.String())
 }
