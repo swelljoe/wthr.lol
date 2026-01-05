@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"encoding/json"
 	"fmt"
 	"html/template"
 	"log"
@@ -120,5 +121,31 @@ func (h *Handlers) HandleWeatherAPI(w http.ResponseWriter, r *http.Request) {
 
 	if err := h.templates.ExecuteTemplate(w, "weather_fragment", wd); err != nil {
 		log.Printf("Template error: %v", err)
+	}
+}
+
+// HandleSearch performs location autocomplete
+func (h *Handlers) HandleSearch(w http.ResponseWriter, r *http.Request) {
+	q := r.URL.Query().Get("q")
+	if len(q) < 2 {
+		w.Header().Set("Content-Type", "application/json")
+		w.Write([]byte("[]"))
+		return
+	}
+
+	places, err := h.db.SearchPlaces(q)
+	if err != nil {
+		log.Printf("Search error: %v", err)
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		return
+	}
+
+	if places == nil {
+		places = []db.Place{}
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(places); err != nil {
+		log.Printf("JSON encode error: %v", err)
 	}
 }

@@ -21,8 +21,11 @@
             </header>
 
             <div class="location-input">
-                <input type="text" id="location" placeholder="Enter city name..."
-                    onkeypress="if(event.key === 'Enter') manualLocate()">
+                <div class="search-container">
+                    <input type="text" id="location" placeholder="Enter city or zip..."
+                        onkeypress="if(event.key === 'Enter') manualLocate()" autocomplete="off">
+                    <ul id="suggestions" class="suggestions"></ul>
+                </div>
                 <button type="button" onclick="manualLocate()">Search</button>
                 <button type="button" id="locate-btn" class="secondary" onclick="locateMe()">📍 Locate Me</button>
             </div>
@@ -49,20 +52,69 @@
     <script>
         // Check if we already have permission or should try automatically
         document.addEventListener('DOMContentLoaded', () => {
+            setupAutocomplete();
+
             if (navigator.geolocation) {
                 // Try to get location silently first (only works if permission granted)
                 navigator.permissions.query({ name: 'geolocation' }).then(result => {
                     if (result.state === 'granted') {
                         locateMe(true);
                     } else if (result.state === 'prompt') {
-                        // Optional: Could prompt, but maybe too intrusive? 
-                        // User asked "use location services... ask the user when not".
-                        // So we should basically try it.
                         locateMe(true);
                     }
                 });
             }
         });
+
+        function setupAutocomplete() {
+            const input = document.getElementById('location');
+            const list = document.getElementById('suggestions');
+            let debounceTimer;
+
+            // Hide on click outside
+            document.addEventListener('click', (e) => {
+                if (!input.contains(e.target) && !list.contains(e.target)) {
+                    list.classList.remove('visible');
+                }
+            });
+
+            input.addEventListener('input', (e) => {
+                clearTimeout(debounceTimer);
+                const query = e.target.value.trim();
+
+                if (query.length < 2) {
+                    list.classList.remove('visible');
+                    return;
+                }
+
+                debounceTimer = setTimeout(() => {
+                    fetch(`/api/search?q=${encodeURIComponent(query)}`)
+                        .then(r => r.json())
+                        .then(places => {
+                            list.innerHTML = '';
+                            if (places && places.length > 0) {
+                                places.forEach(p => {
+                                    const li = document.createElement('li');
+                                    li.innerHTML = `
+                                        <span class="place-name">${p.name}</span>
+                                        <span class="place-meta">${p.state} ${p.zip || ''}</span>
+                                    `;
+                                    li.onclick = () => {
+                                        input.value = `${p.name}, ${p.state}`;
+                                        list.classList.remove('visible');
+                                        fetchWeather(`lat=${p.latitude}&lon=${p.longitude}`);
+                                    };
+                                    list.appendChild(li);
+                                });
+                                list.classList.add('visible');
+                            } else {
+                                list.classList.remove('visible');
+                            }
+                        })
+                        .catch(err => console.error(err));
+                }, 300);
+            });
+        }
 
         function locateMe(silent = false) {
             if (!navigator.geolocation) {
