@@ -66,6 +66,9 @@
             }
         });
 
+        // Store flag to track if click handler has been added
+        let clickHandlerAdded = false;
+
         function setupAutocomplete() {
             const input = document.getElementById('location');
             const list = document.getElementById('suggestions');
@@ -73,13 +76,19 @@
             let selectedIndex = -1;
             let places = [];
 
-            // Hide on click outside
-            document.addEventListener('click', (e) => {
-                if (!input.contains(e.target) && !list.contains(e.target)) {
-                    list.classList.remove('visible');
-                    selectedIndex = -1;
-                }
-            });
+            // Hide on click outside - only add listener once
+            if (!clickHandlerAdded) {
+                document.addEventListener('click', (e) => {
+                    // Get fresh references each time the handler runs
+                    const currentInput = document.getElementById('location');
+                    const currentList = document.getElementById('suggestions');
+                    if (currentInput && currentList &&
+                        !currentInput.contains(e.target) && !currentList.contains(e.target)) {
+                        currentList.classList.remove('visible');
+                    }
+                });
+                clickHandlerAdded = true;
+            }
 
             // Keyboard navigation
             input.addEventListener('keydown', (e) => {
