@@ -133,8 +133,12 @@
                 .catch(e => {
                     display.innerHTML = `<div style='text-align:center; padding: 2rem; color: #ef4444'>
                         <h3>Error</h3>
-                        <p>${e.message.replace(/<[^>]*>?/gm, '')}</p>
+                        <p></p>
                     </div>`;
+                    const errorParagraph = display.querySelector('p');
+                    if (errorParagraph) {
+                        errorParagraph.textContent = e.message;
+                    }
                     display.style.opacity = '1';
 
                     const btn = document.getElementById('locate-btn');
