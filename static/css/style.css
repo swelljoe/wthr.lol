@@ -59,9 +59,6 @@ h3 {
 
 .hero h1 {
     font-size: 3.5rem;
-    background: linear-gradient(to right, var(--primary-color), var(--accent-color));
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
     margin-bottom: 0.5rem;
 }
 
