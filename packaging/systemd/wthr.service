@@ -1,6 +1,8 @@
 [Unit]
 Description=wthr.lol Weather Service
 After=network.target
+StartLimitBurst=5
+StartLimitIntervalSec=300
 
 [Service]
 Type=simple
@@ -12,7 +14,7 @@ WorkingDirectory=/usr/share/wthr
 Environment=DB_PATH=/var/lib/wthr/wthr.db
 Environment=PORT=8080
 ExecStart=/usr/bin/wthr
-Restart=always
+Restart=on-failure
 RestartSec=5s
 # Security hardening directives
 PrivateTmp=true
