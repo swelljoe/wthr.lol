@@ -1,0 +1,14 @@
+[
+    {
+        "relation": [
+            "delegate_permission/common.handle_all_urls"
+        ],
+        "target": {
+            "namespace": "android_app",
+            "package_name": "lol.wthr.twa",
+            "sha256_cert_fingerprints": [
+                "F8:7E:82:21:85:A1:03:87:DD:86:0A:FE:AB:E2:7E:63:54:C4:05:32:AC:5F:61:EF:A2:0F:D9:4A:DE:63:F4:A3"
+            ]
+        }
+    }
+]
