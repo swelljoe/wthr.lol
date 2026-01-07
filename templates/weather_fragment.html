@@ -1,13 +1,40 @@
 {{define "weather_fragment"}}
 <div id="weather-display" class="fade-in">
+    <div
+        id="resolved-location"
+        data-location="{{.Location}}"
+        style="display: none"
+    ></div>
+    {{if .Location}}
+    <h3
+        class="location-name"
+        style="
+            text-align: center;
+            margin: 0 0 0.5rem 0;
+            color: var(--text-secondary);
+        "
+    >
+        {{.Location}}
+    </h3>
+    {{end}}
     <div class="current-weather">
         <div class="main-info">
-            <span class="material-symbols-rounded weather-icon-large" style="font-size: 80px;">{{.Current.Icon}}</span>
+            <span
+                class="material-symbols-rounded weather-icon-large"
+                style="font-size: 80px"
+                >{{.Current.Icon}}</span
+            >
             <div>
-                <div class="temperature">{{.Current.Temperature}}°{{.Current.TemperatureUnit}}</div>
+                <div class="temperature">
+                    {{.Current.Temperature}}°{{.Current.TemperatureUnit}}
+                </div>
                 <div class="condition">{{.Current.ShortForecast}}</div>
-                <div class="condition" style="font-size: 0.9rem; margin-top: 0.2rem">H: {{.Current.HighTemp}}° L:
-                    {{.Current.LowTemp}}°</div>
+                <div
+                    class="condition"
+                    style="font-size: 0.9rem; margin-top: 0.2rem"
+                >
+                    H: {{.Current.HighTemp}}° L: {{.Current.LowTemp}}°
+                </div>
             </div>
         </div>
         <div class="details">
@@ -17,7 +44,9 @@
             </div>
             <div class="detail-item">
                 <span class="label">Wind</span>
-                <span class="value">{{.Current.WindSpeed}} {{.Current.WindDirection}}</span>
+                <span class="value"
+                    >{{.Current.WindSpeed}} {{.Current.WindDirection}}</span
+                >
             </div>
         </div>
     </div>
@@ -43,8 +72,11 @@
             {{range .Forecast}}
             <div class="forecast-card">
                 <div class="forecast-name">{{.Name}}</div>
-                <span class="material-symbols-rounded weather-icon-small"
-                    style="font-size: 48px; display:block; margin: 0 auto;">{{.Icon}}</span>
+                <span
+                    class="material-symbols-rounded weather-icon-small"
+                    style="font-size: 48px; display: block; margin: 0 auto"
+                    >{{.Icon}}</span
+                >
                 <div class="forecast-temps">
                     <span class="high">{{.HighTemp}}°</span>
                     <span class="low">{{.LowTemp}}°</span>

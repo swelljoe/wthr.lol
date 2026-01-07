@@ -9,6 +9,7 @@ type WeatherData struct {
 	Alerts    []Alert          `json:"alerts"`
 	CachedAt  time.Time        `json:"cached_at"`
 	ExpiresAt time.Time        `json:"expires_at"`
+	Location  string           `json:"location,omitempty"`
 }
 
 type CurrentCondition struct {
