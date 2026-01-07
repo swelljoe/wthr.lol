@@ -292,11 +292,7 @@
                             const resolvedEl =
                                 display.querySelector("#resolved-location");
                             if (resolvedEl) {
-                                const loc =
-                                    (resolvedEl.dataset &&
-                                        resolvedEl.dataset.location) ||
-                                    resolvedEl.getAttribute("data-location") ||
-                                    "";
+                                const loc = resolvedEl.dataset.location || "";
                                 if (loc) {
                                     const input =
                                         document.getElementById("location");
