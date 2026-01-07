@@ -1,265 +1,331 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>wthr.lol - Just weather</title>
+        <link rel="stylesheet" href="/static/css/style.css" />
+        <link rel="manifest" href="/static/manifest.json" />
+        <meta name="theme-color" content="#ffffff" />
+    </head>
 
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>wthr.lol - Just weather</title>
-    <link rel="stylesheet" href="/static/css/style.css">
-    <link rel="manifest" href="/static/manifest.json">
-    <meta name="theme-color" content="#ffffff">
-</head>
+    <body>
+        <main class="weather-container">
+            <div class="hero">
+                <h1>🌤️ wthr.lol</h1>
+                <p>No ads, no tracking, no BS, just weather.</p>
+            </div>
 
-<body>
-    <main class="weather-container">
-        <div class="hero">
-            <h1>🌤️ wthr.lol</h1>
-            <p>No ads, no tracking, no BS, just weather.</p>
-        </div>
+            <article class="weather-card">
+                <header>
+                    <h2>Current Weather</h2>
+                </header>
 
-        <article class="weather-card">
-            <header>
-                <h2>Current Weather</h2>
-            </header>
-
-            <div class="location-input">
-                <div class="search-container">
-                    <input type="text" id="location" placeholder="Enter city or zip..."
-                        onkeypress="if(event.key === 'Enter') manualLocate()" autocomplete="off" aria-expanded="false"
-                        aria-activedescendant="">
-                    <ul id="suggestions" class="suggestions" role="listbox"></ul>
+                <div class="location-input">
+                    <div class="search-container">
+                        <input
+                            type="text"
+                            id="location"
+                            placeholder="Enter city or zip..."
+                            onkeypress="if(event.key === 'Enter') manualLocate()"
+                            autocomplete="off"
+                            aria-expanded="false"
+                            aria-activedescendant=""
+                        />
+                        <ul
+                            id="suggestions"
+                            class="suggestions"
+                            role="listbox"
+                        ></ul>
+                    </div>
+                    <button type="button" onclick="manualLocate()">
+                        Search
+                    </button>
+                    <button
+                        type="button"
+                        id="locate-btn"
+                        class="secondary"
+                        onclick="locateMe()"
+                    >
+                        📍 Locate Me
+                    </button>
                 </div>
-                <button type="button" onclick="manualLocate()">Search</button>
-                <button type="button" id="locate-btn" class="secondary" onclick="locateMe()">📍 Locate Me</button>
-            </div>
 
-            <div id="weather-display">
-                <p style="text-align: center; color: var(--text-secondary);">
-                    Enter a location or click "Locate Me" to get started.
-                </p>
-            </div>
-        </article>
-
-        <div style="margin-top: 3rem; opacity: 0.7;">
-            <article>
-                <p>
-                    Data provided by <a href="https://www.weather.gov/documentation/services-web-api"
-                        style="color: var(--accent-color)">NWS API</a>.
-                </p>
+                <div id="weather-display">
+                    <p style="text-align: center; color: var(--text-secondary)">
+                        Enter a location or click "Locate Me" to get started.
+                    </p>
+                </div>
             </article>
-        </div>
-    </main>
 
-    <script>
-        // Check if we already have permission or should try automatically
-        document.addEventListener('DOMContentLoaded', () => {
-            if ('serviceWorker' in navigator) {
-                navigator.serviceWorker.register('/sw.js');
-            }
-            setupAutocomplete();
+            <div style="margin-top: 3rem; opacity: 0.7">
+                <article>
+                    <p>
+                        Data provided by
+                        <a
+                            href="https://www.weather.gov/documentation/services-web-api"
+                            style="color: var(--accent-color)"
+                            >NWS API</a
+                        >.
+                    </p>
+                </article>
+            </div>
+        </main>
 
-            if (navigator.geolocation) {
-                // Try to get location silently first (only works if permission granted)
-                navigator.permissions.query({ name: 'geolocation' }).then(result => {
-                    if (result.state === 'granted') {
-                        locateMe(true);
-                    } else if (result.state === 'prompt') {
-                        locateMe(true);
-                    }
-                });
-            }
-        });
+        <script>
+            // Check if we already have permission or should try automatically
+            document.addEventListener("DOMContentLoaded", () => {
+                if ("serviceWorker" in navigator) {
+                    navigator.serviceWorker.register("/sw.js");
+                }
+                setupAutocomplete();
 
-        // Store flag to track if click handler has been added
-        let clickHandlerAdded = false;
-
-        function setupAutocomplete() {
-            const input = document.getElementById('location');
-            const list = document.getElementById('suggestions');
-            let debounceTimer;
-            let selectedIndex = -1;
-            let places = [];
-
-            // Hide on click outside - only add listener once
-            if (!clickHandlerAdded) {
-                document.addEventListener('click', (e) => {
-                    // Get fresh references each time the handler runs
-                    const currentInput = document.getElementById('location');
-                    const currentList = document.getElementById('suggestions');
-                    if (currentInput && currentList &&
-                        !currentInput.contains(e.target) && !currentList.contains(e.target)) {
-                        currentList.classList.remove('visible');
-                    }
-                });
-                clickHandlerAdded = true;
-            }
-
-            // Keyboard navigation
-            input.addEventListener('keydown', (e) => {
-                const items = list.querySelectorAll('li');
-                const isListVisible = list.classList.contains('visible');
-
-                if (e.key === 'ArrowDown') {
-                    e.preventDefault();
-                    if (items.length === 0) return;
-
-                    selectedIndex = (selectedIndex + 1) % items.length;
-                    updateHighlight(items);
-                } else if (e.key === 'ArrowUp') {
-                    e.preventDefault();
-                    if (items.length === 0) return;
-
-                    selectedIndex = selectedIndex <= 0 ? items.length - 1 : selectedIndex - 1;
-                    updateHighlight(items);
-                } else if (e.key === 'Enter') {
-                    e.preventDefault();
-                    if (isListVisible && selectedIndex >= 0 && selectedIndex < items.length) {
-                        items[selectedIndex].click();
-                    } else {
-                        manualLocate();
-                    }
-                } else if (e.key === 'Escape') {
-                    e.preventDefault();
-                    list.classList.remove('visible');
-                    selectedIndex = -1;
+                if (navigator.geolocation) {
+                    // Try to get location silently first (only works if permission granted)
+                    navigator.permissions
+                        .query({ name: "geolocation" })
+                        .then((result) => {
+                            if (result.state === "granted") {
+                                locateMe(true);
+                            } else if (result.state === "prompt") {
+                                locateMe(true);
+                            }
+                        });
                 }
             });
 
-            function updateHighlight(items) {
-                items.forEach((item, idx) => {
-                    if (idx === selectedIndex) {
-                        item.classList.add('highlighted');
-                        item.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
-                    } else {
-                        item.classList.remove('highlighted');
+            // Store flag to track if click handler has been added
+            let clickHandlerAdded = false;
+
+            function setupAutocomplete() {
+                const input = document.getElementById("location");
+                const list = document.getElementById("suggestions");
+                let debounceTimer;
+                let selectedIndex = -1;
+                let places = [];
+
+                // Hide on click outside - only add listener once
+                if (!clickHandlerAdded) {
+                    document.addEventListener("click", (e) => {
+                        // Get fresh references each time the handler runs
+                        const currentInput =
+                            document.getElementById("location");
+                        const currentList =
+                            document.getElementById("suggestions");
+                        if (
+                            currentInput &&
+                            currentList &&
+                            !currentInput.contains(e.target) &&
+                            !currentList.contains(e.target)
+                        ) {
+                            currentList.classList.remove("visible");
+                        }
+                    });
+                    clickHandlerAdded = true;
+                }
+
+                // Keyboard navigation
+                input.addEventListener("keydown", (e) => {
+                    const items = list.querySelectorAll("li");
+                    const isListVisible = list.classList.contains("visible");
+
+                    if (e.key === "ArrowDown") {
+                        e.preventDefault();
+                        if (items.length === 0) return;
+
+                        selectedIndex = (selectedIndex + 1) % items.length;
+                        updateHighlight(items);
+                    } else if (e.key === "ArrowUp") {
+                        e.preventDefault();
+                        if (items.length === 0) return;
+
+                        selectedIndex =
+                            selectedIndex <= 0
+                                ? items.length - 1
+                                : selectedIndex - 1;
+                        updateHighlight(items);
+                    } else if (e.key === "Enter") {
+                        e.preventDefault();
+                        if (
+                            isListVisible &&
+                            selectedIndex >= 0 &&
+                            selectedIndex < items.length
+                        ) {
+                            items[selectedIndex].click();
+                        } else {
+                            manualLocate();
+                        }
+                    } else if (e.key === "Escape") {
+                        e.preventDefault();
+                        list.classList.remove("visible");
+                        selectedIndex = -1;
                     }
+                });
+
+                function updateHighlight(items) {
+                    items.forEach((item, idx) => {
+                        if (idx === selectedIndex) {
+                            item.classList.add("highlighted");
+                            item.scrollIntoView({
+                                block: "nearest",
+                                behavior: "smooth",
+                            });
+                        } else {
+                            item.classList.remove("highlighted");
+                        }
+                    });
+                }
+
+                input.addEventListener("input", (e) => {
+                    clearTimeout(debounceTimer);
+                    const query = e.target.value.trim();
+                    selectedIndex = -1;
+
+                    if (query.length < 2) {
+                        list.classList.remove("visible");
+                        return;
+                    }
+
+                    debounceTimer = setTimeout(() => {
+                        fetch(`/api/search?q=${encodeURIComponent(query)}`)
+                            .then((r) => r.json())
+                            .then((data) => {
+                                places = data;
+                                list.innerHTML = "";
+                                if (places && places.length > 0) {
+                                    places.forEach((p) => {
+                                        const li = document.createElement("li");
+                                        const nameSpan =
+                                            document.createElement("span");
+                                        nameSpan.className = "place-name";
+                                        nameSpan.textContent = p.name;
+                                        const metaSpan =
+                                            document.createElement("span");
+                                        metaSpan.className = "place-meta";
+                                        metaSpan.textContent = `${p.state} ${p.zip || ""}`;
+                                        li.appendChild(nameSpan);
+                                        li.appendChild(metaSpan);
+                                        li.onclick = () => {
+                                            input.value = `${p.name}, ${p.state}`;
+                                            list.classList.remove("visible");
+                                            selectedIndex = -1;
+                                            fetchWeather(
+                                                `lat=${p.latitude}&lon=${p.longitude}`,
+                                            );
+                                        };
+                                        list.appendChild(li);
+                                    });
+                                    list.classList.add("visible");
+                                } else {
+                                    list.classList.remove("visible");
+                                }
+                            })
+                            .catch((err) => console.error(err));
+                    }, 300);
                 });
             }
 
-            input.addEventListener('input', (e) => {
-                clearTimeout(debounceTimer);
-                const query = e.target.value.trim();
-                selectedIndex = -1;
-
-                if (query.length < 2) {
-                    list.classList.remove('visible');
+            function locateMe(silent = false) {
+                if (!navigator.geolocation) {
+                    if (!silent)
+                        alert("Geolocation is not supported by your browser");
                     return;
                 }
 
-                debounceTimer = setTimeout(() => {
-                    fetch(`/api/search?q=${encodeURIComponent(query)}`)
-                        .then(r => r.json())
-                        .then(data => {
-                            places = data;
-                            list.innerHTML = '';
-                            if (places && places.length > 0) {
-                                places.forEach(p => {
-                                    const li = document.createElement('li');
-                                    const nameSpan = document.createElement('span');
-                                    nameSpan.className = 'place-name';
-                                    nameSpan.textContent = p.name;
-                                    const metaSpan = document.createElement('span');
-                                    metaSpan.className = 'place-meta';
-                                    metaSpan.textContent = `${p.state} ${p.zip || ''}`;
-                                    li.appendChild(nameSpan);
-                                    li.appendChild(metaSpan);
-                                    li.onclick = () => {
-                                        input.value = `${p.name}, ${p.state}`;
-                                        list.classList.remove('visible');
-                                        selectedIndex = -1;
-                                        fetchWeather(`lat=${p.latitude}&lon=${p.longitude}`);
-                                    };
-                                    list.appendChild(li);
-                                });
-                                list.classList.add('visible');
-                            } else {
-                                list.classList.remove('visible');
-                            }
-                        })
-                        .catch(err => console.error(err));
-                }, 300);
-            });
-        }
+                const btn = document.getElementById("locate-btn");
+                const origText = btn.innerText;
 
-        function locateMe(silent = false) {
-            if (!navigator.geolocation) {
-                if (!silent) alert("Geolocation is not supported by your browser");
-                return;
-            }
-
-            const btn = document.getElementById('locate-btn');
-            const origText = btn.innerText;
-
-            if (!silent) {
-                btn.innerText = "Locating...";
-                btn.disabled = true;
-            }
-
-            navigator.geolocation.getCurrentPosition(
-                (position) => {
-                    const lat = position.coords.latitude;
-                    const lon = position.coords.longitude;
-                    fetchWeather(`lat=${lat}&lon=${lon}`);
-                },
-                (error) => {
-                    // Reset button text and show error if it was NOT a silent attempt that failed
-                    if (!silent) {
-                        alert("Unable to retrieve your location");
-                        btn.innerText = origText;
-                        btn.disabled = false;
-                    } else {
-                        console.log("Auto-location unavailable or denied");
-                    }
+                if (!silent) {
+                    btn.innerText = "Locating...";
+                    btn.disabled = true;
                 }
-            );
-        }
 
-        function manualLocate() {
-            const input = document.getElementById('location');
-            const query = input.value;
-            if (!query) return;
-            fetchWeather(`location=${encodeURIComponent(query)}`);
-        }
+                navigator.geolocation.getCurrentPosition(
+                    (position) => {
+                        const lat = position.coords.latitude;
+                        const lon = position.coords.longitude;
+                        let qs = `lat=${lat}&lon=${lon}`;
+                        if (!silent) {
+                            // Mark this request as user-initiated so the UI can update the search input
+                            qs += "&userInitiated=1";
+                        }
+                        fetchWeather(qs);
+                    },
+                    (error) => {
+                        // Reset button text and show error if it was NOT a silent attempt that failed
+                        if (!silent) {
+                            alert("Unable to retrieve your location");
+                            btn.innerText = origText;
+                            btn.disabled = false;
+                        } else {
+                            console.log("Auto-location unavailable or denied");
+                        }
+                    },
+                );
+            }
 
-        function fetchWeather(qs) {
-            const display = document.getElementById('weather-display');
-            display.style.opacity = '0.5';
+            function manualLocate() {
+                const input = document.getElementById("location");
+                const query = input.value;
+                if (!query) return;
+                fetchWeather(`location=${encodeURIComponent(query)}`);
+            }
 
-            fetch(`/api/weather?${qs}`)
-                .then(r => {
-                    if (!r.ok) return r.text().then(t => { throw new Error(t || r.statusText) });
-                    return r.text();
-                })
-                .then(html => {
-                    display.innerHTML = html;
-                    display.style.opacity = '1';
+            function fetchWeather(qs) {
+                const display = document.getElementById("weather-display");
+                display.style.opacity = "0.5";
 
-                    // Reset 'Locate Me' btn if it was used
-                    const btn = document.getElementById('locate-btn');
-                    if (btn.disabled) {
-                        btn.innerText = "📍 Locate Me";
-                        btn.disabled = false;
-                    }
-                })
-                .catch(e => {
-                    display.innerHTML = `<div style='text-align:center; padding: 2rem; color: var(--error-color)'>
+                fetch(`/api/weather?${qs}`)
+                    .then((r) => {
+                        if (!r.ok)
+                            return r.text().then((t) => {
+                                throw new Error(t || r.statusText);
+                            });
+                        return r.text();
+                    })
+                    .then((html) => {
+                        display.innerHTML = html;
+                        display.style.opacity = "1";
+
+                        // If this response came from a user-initiated locate, update the search input
+                        if (qs && qs.includes("userInitiated=1")) {
+                            const resolvedEl =
+                                display.querySelector("#resolved-location");
+                            if (resolvedEl) {
+                                const loc = resolvedEl.dataset.location || "";
+                                if (loc) {
+                                    const input =
+                                        document.getElementById("location");
+                                    if (input) input.value = loc;
+                                }
+                            }
+                        }
+
+                        // Reset 'Locate Me' btn if it was used
+                        const btn = document.getElementById("locate-btn");
+                        if (btn.disabled) {
+                            btn.innerText = "📍 Locate Me";
+                            btn.disabled = false;
+                        }
+                    })
+                    .catch((e) => {
+                        display.innerHTML = `<div style='text-align:center; padding: 2rem; color: var(--error-color)'>
                         <h3>Error</h3>
                         <p></p>
                     </div>`;
-                    const errorParagraph = display.querySelector('p');
-                    if (errorParagraph) {
-                        errorParagraph.textContent = e.message;
-                    }
-                    display.style.opacity = '1';
+                        const errorParagraph = display.querySelector("p");
+                        if (errorParagraph) {
+                            errorParagraph.textContent = e.message;
+                        }
+                        display.style.opacity = "1";
 
-                    const btn = document.getElementById('locate-btn');
-                    if (btn.disabled) {
-                        btn.innerText = "📍 Locate Me";
-                        btn.disabled = false;
-                    }
-                });
-        }
-    </script>
-</body>
-
+                        const btn = document.getElementById("locate-btn");
+                        if (btn.disabled) {
+                            btn.innerText = "📍 Locate Me";
+                            btn.disabled = false;
+                        }
+                    });
+            }
+        </script>
+    </body>
 </html>

@@ -177,3 +177,66 @@ func (c *Client) Geocode(query string) (float64, float64, error) {
 
 	return lat, lon, nil
 }
+
+// ReverseResponse represents Nominatim reverse response
+type ReverseResponse struct {
+	DisplayName string `json:"display_name"`
+	Address     struct {
+		City    string `json:"city"`
+		Town    string `json:"town"`
+		Village string `json:"village"`
+		State   string `json:"state"`
+		County  string `json:"county"`
+	} `json:"address"`
+}
+
+// ReverseGeocode fetches a human-friendly location name for given coords using OpenStreetMap
+func (c *Client) ReverseGeocode(lat, lon float64) (string, error) {
+	baseURL := "https://nominatim.openstreetmap.org/reverse"
+	params := url.Values{}
+	params.Set("format", "json")
+	params.Set("lat", fmt.Sprintf("%.6f", lat))
+	params.Set("lon", fmt.Sprintf("%.6f", lon))
+	params.Set("zoom", "10")
+	params.Set("addressdetails", "1")
+	requestURL := baseURL + "?" + params.Encode()
+
+	data, err := c.get(requestURL)
+	if err != nil {
+		return "", err
+	}
+
+	var resp ReverseResponse
+	if err := json.Unmarshal(data, &resp); err != nil {
+		return "", err
+	}
+
+	// Prefer city/town/village and append state if available
+	place := ""
+	if resp.Address.City != "" {
+		place = resp.Address.City
+	} else if resp.Address.Town != "" {
+		place = resp.Address.Town
+	} else if resp.Address.Village != "" {
+		place = resp.Address.Village
+	}
+	if place != "" {
+		if resp.Address.State != "" {
+			return fmt.Sprintf("%s, %s", place, resp.Address.State), nil
+		}
+		return place, nil
+	}
+
+	if resp.Address.County != "" {
+		if resp.Address.State != "" {
+			return fmt.Sprintf("%s, %s", resp.Address.County, resp.Address.State), nil
+		}
+		return resp.Address.County, nil
+	}
+
+	if resp.DisplayName != "" {
+		return resp.DisplayName, nil
+	}
+
+	return "", fmt.Errorf("location not found")
+}

@@ -93,7 +93,20 @@ func (s *Service) fetchFreshWeather(lat, lon float64) (*WeatherData, error) {
 	}
 
 	// D. Transform to internal structure
-	return transform(fc, al)
+	wd, err := transform(fc, al)
+	if err != nil {
+		return nil, err
+	}
+
+	// Attempt to reverse geocode to get a friendly location name.
+	if loc, err := s.client.ReverseGeocode(lat, lon); err == nil {
+		wd.Location = loc
+	} else {
+		// Non-fatal: log and continue without location
+		log.Printf("Reverse geocode error: %v", err)
+	}
+
+	return wd, nil
 }
 
 func transform(fc *ForecastResponse, al *AlertsResponse) (*WeatherData, error) {

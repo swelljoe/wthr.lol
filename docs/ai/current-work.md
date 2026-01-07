@@ -13,6 +13,7 @@
 - Updated UI with premium aesthetics (Glassmorphism, Inter font)
 - Added "Locate Me" functionality using browser Geolocation
 - Added manual location search
+- When "Locate Me" is used, the search input is now populated with the reverse-geocoded location so users can confirm or edit the detected place
 - Added High/Low/Precipitation display for current and forecast items
 - Implemented auto-location on page load
 - Switched to Material Symbols for weather icons
