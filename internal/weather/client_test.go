@@ -7,7 +7,10 @@ import (
 	"testing"
 )
 
-// mockRoundTripper is a custom RoundTripper for testing
+// mockRoundTripper is a custom RoundTripper for testing HTTP clients.
+// It intercepts HTTP requests and passes them to a test handler, allowing
+// us to mock API responses without starting a real HTTP server or modifying
+// the Client's get method. This approach keeps tests isolated and fast.
 type mockRoundTripper struct {
 	handler http.Handler
 }
