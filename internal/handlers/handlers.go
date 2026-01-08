@@ -6,6 +6,7 @@ import (
 	"html/template"
 	"log"
 	"net/http"
+	"net/mail"
 
 	"github.com/swelljoe/wthr.lol/internal/db"
 	"github.com/swelljoe/wthr.lol/internal/weather"
@@ -197,6 +198,10 @@ func (h *Handlers) HandleAppInterest(w http.ResponseWriter, r *http.Request) {
 	// Basic validation
 	if payload.Email == "" {
 		http.Error(w, "Email is required", http.StatusBadRequest)
+		return
+	}
+	if _, err := mail.ParseAddress(payload.Email); err != nil {
+		http.Error(w, "Invalid email format", http.StatusBadRequest)
 		return
 	}
 	if !payload.Android && !payload.IOS {
