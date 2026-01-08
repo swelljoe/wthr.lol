@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/swelljoe/wthr.lol/internal/db"
@@ -296,5 +297,319 @@ func TestHandleSearch_QueryValidation(t *testing.T) {
 				t.Errorf("expected results for query %q, got none", tt.query)
 			}
 		})
+	}
+}
+
+func TestHandleAppInterest_MethodNotAllowed(t *testing.T) {
+	mock := &mockDB{}
+	h := &Handlers{db: mock}
+
+	req := httptest.NewRequest("GET", "/api/app-interest", nil)
+	w := httptest.NewRecorder()
+
+	h.HandleAppInterest(w, req)
+
+	resp := w.Result()
+	if resp.StatusCode != http.StatusMethodNotAllowed {
+		t.Errorf("expected status MethodNotAllowed, got %v", resp.StatusCode)
+	}
+}
+
+func TestHandleAppInterest_InvalidJSON(t *testing.T) {
+	mock := &mockDB{}
+	h := &Handlers{db: mock}
+
+	payload := `{"email":"test@example.com","android":true,"invalid"}`
+	req := httptest.NewRequest("POST", "/api/app-interest", strings.NewReader(payload))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	h.HandleAppInterest(w, req)
+
+	resp := w.Result()
+	if resp.StatusCode != http.StatusBadRequest {
+		t.Errorf("expected status BadRequest for invalid JSON, got %v", resp.StatusCode)
+	}
+}
+
+func TestHandleAppInterest_EmptyEmail(t *testing.T) {
+	mock := &mockDB{}
+	h := &Handlers{db: mock}
+
+	payload := `{"email":"","android":true,"ios":false,"country":"US"}`
+	req := httptest.NewRequest("POST", "/api/app-interest", strings.NewReader(payload))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	h.HandleAppInterest(w, req)
+
+	resp := w.Result()
+	if resp.StatusCode != http.StatusBadRequest {
+		t.Errorf("expected status BadRequest for empty email, got %v", resp.StatusCode)
+	}
+}
+
+func TestHandleAppInterest_MissingPlatformSelection(t *testing.T) {
+	mock := &mockDB{}
+	h := &Handlers{db: mock}
+
+	payload := `{"email":"test@example.com","android":false,"ios":false,"country":"US"}`
+	req := httptest.NewRequest("POST", "/api/app-interest", strings.NewReader(payload))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	h.HandleAppInterest(w, req)
+
+	resp := w.Result()
+	if resp.StatusCode != http.StatusBadRequest {
+		t.Errorf("expected status BadRequest for missing platform selection, got %v", resp.StatusCode)
+	}
+}
+
+func TestHandleAppInterest_SuccessAndroidOnly(t *testing.T) {
+	savedEmail := ""
+	savedAndroid := false
+	savedIOS := false
+	savedCountry := ""
+
+	mock := &mockDB{
+		saveAppInterestFunc: func(email string, android bool, ios bool, country string) error {
+			savedEmail = email
+			savedAndroid = android
+			savedIOS = ios
+			savedCountry = country
+			return nil
+		},
+	}
+	h := &Handlers{db: mock}
+
+	payload := `{"email":"test@example.com","android":true,"ios":false,"country":"US"}`
+	req := httptest.NewRequest("POST", "/api/app-interest", strings.NewReader(payload))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	h.HandleAppInterest(w, req)
+
+	resp := w.Result()
+	if resp.StatusCode != http.StatusOK {
+		t.Errorf("expected status OK, got %v", resp.StatusCode)
+	}
+
+	contentType := resp.Header.Get("Content-Type")
+	if contentType != "application/json" {
+		t.Errorf("expected Content-Type application/json, got %v", contentType)
+	}
+
+	var result map[string]string
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		t.Errorf("failed to decode response: %v", err)
+	}
+
+	if result["status"] != "ok" {
+		t.Errorf("expected status ok, got %v", result["status"])
+	}
+
+	if savedEmail != "test@example.com" {
+		t.Errorf("expected email test@example.com, got %s", savedEmail)
+	}
+	if !savedAndroid {
+		t.Errorf("expected android to be true, got %v", savedAndroid)
+	}
+	if savedIOS {
+		t.Errorf("expected ios to be false, got %v", savedIOS)
+	}
+	if savedCountry != "US" {
+		t.Errorf("expected country US, got %s", savedCountry)
+	}
+}
+
+func TestHandleAppInterest_SuccessIOSOnly(t *testing.T) {
+	savedEmail := ""
+	savedAndroid := false
+	savedIOS := false
+	savedCountry := ""
+
+	mock := &mockDB{
+		saveAppInterestFunc: func(email string, android bool, ios bool, country string) error {
+			savedEmail = email
+			savedAndroid = android
+			savedIOS = ios
+			savedCountry = country
+			return nil
+		},
+	}
+	h := &Handlers{db: mock}
+
+	payload := `{"email":"ios@example.com","android":false,"ios":true,"country":"CA"}`
+	req := httptest.NewRequest("POST", "/api/app-interest", strings.NewReader(payload))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	h.HandleAppInterest(w, req)
+
+	resp := w.Result()
+	if resp.StatusCode != http.StatusOK {
+		t.Errorf("expected status OK, got %v", resp.StatusCode)
+	}
+
+	if savedEmail != "ios@example.com" {
+		t.Errorf("expected email ios@example.com, got %s", savedEmail)
+	}
+	if savedAndroid {
+		t.Errorf("expected android to be false, got %v", savedAndroid)
+	}
+	if !savedIOS {
+		t.Errorf("expected ios to be true, got %v", savedIOS)
+	}
+	if savedCountry != "CA" {
+		t.Errorf("expected country CA, got %s", savedCountry)
+	}
+}
+
+func TestHandleAppInterest_SuccessBothPlatforms(t *testing.T) {
+	savedEmail := ""
+	savedAndroid := false
+	savedIOS := false
+	savedCountry := ""
+
+	mock := &mockDB{
+		saveAppInterestFunc: func(email string, android bool, ios bool, country string) error {
+			savedEmail = email
+			savedAndroid = android
+			savedIOS = ios
+			savedCountry = country
+			return nil
+		},
+	}
+	h := &Handlers{db: mock}
+
+	payload := `{"email":"both@example.com","android":true,"ios":true,"country":"UK"}`
+	req := httptest.NewRequest("POST", "/api/app-interest", strings.NewReader(payload))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	h.HandleAppInterest(w, req)
+
+	resp := w.Result()
+	if resp.StatusCode != http.StatusOK {
+		t.Errorf("expected status OK, got %v", resp.StatusCode)
+	}
+
+	if savedEmail != "both@example.com" {
+		t.Errorf("expected email both@example.com, got %s", savedEmail)
+	}
+	if !savedAndroid {
+		t.Errorf("expected android to be true, got %v", savedAndroid)
+	}
+	if !savedIOS {
+		t.Errorf("expected ios to be true, got %v", savedIOS)
+	}
+	if savedCountry != "UK" {
+		t.Errorf("expected country UK, got %s", savedCountry)
+	}
+}
+
+func TestHandleAppInterest_DatabaseError(t *testing.T) {
+	mock := &mockDB{
+		saveAppInterestFunc: func(email string, android bool, ios bool, country string) error {
+			return errors.New("database connection failed")
+		},
+	}
+	h := &Handlers{db: mock}
+
+	payload := `{"email":"test@example.com","android":true,"ios":false,"country":"US"}`
+	req := httptest.NewRequest("POST", "/api/app-interest", strings.NewReader(payload))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	h.HandleAppInterest(w, req)
+
+	resp := w.Result()
+	if resp.StatusCode != http.StatusInternalServerError {
+		t.Errorf("expected status InternalServerError, got %v", resp.StatusCode)
+	}
+}
+
+func TestHandleAppInterest_NoDatabaseDevelopmentMode(t *testing.T) {
+	// Test with nil database (development mode)
+	h := &Handlers{db: nil}
+
+	payload := `{"email":"dev@example.com","android":true,"ios":true,"country":"FR"}`
+	req := httptest.NewRequest("POST", "/api/app-interest", strings.NewReader(payload))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	h.HandleAppInterest(w, req)
+
+	resp := w.Result()
+	if resp.StatusCode != http.StatusOK {
+		t.Errorf("expected status OK in development mode, got %v", resp.StatusCode)
+	}
+
+	contentType := resp.Header.Get("Content-Type")
+	if contentType != "application/json" {
+		t.Errorf("expected Content-Type application/json, got %v", contentType)
+	}
+
+	var result map[string]string
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		t.Errorf("failed to decode response: %v", err)
+	}
+
+	if result["status"] != "ok" {
+		t.Errorf("expected status ok, got %v", result["status"])
+	}
+}
+
+func TestHandleAppInterest_EmptyCountry(t *testing.T) {
+	// Test that empty country is accepted (country is not validated as required)
+	savedEmail := ""
+	savedCountry := ""
+
+	mock := &mockDB{
+		saveAppInterestFunc: func(email string, android bool, ios bool, country string) error {
+			savedEmail = email
+			savedCountry = country
+			return nil
+		},
+	}
+	h := &Handlers{db: mock}
+
+	payload := `{"email":"test@example.com","android":true,"ios":false,"country":""}`
+	req := httptest.NewRequest("POST", "/api/app-interest", strings.NewReader(payload))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	h.HandleAppInterest(w, req)
+
+	resp := w.Result()
+	// Currently the handler doesn't validate country as required, so this should succeed
+	if resp.StatusCode != http.StatusOK {
+		t.Errorf("expected status OK for empty country, got %v", resp.StatusCode)
+	}
+
+	if savedEmail != "test@example.com" {
+		t.Errorf("expected email test@example.com, got %s", savedEmail)
+	}
+	if savedCountry != "" {
+		t.Errorf("expected empty country, got %s", savedCountry)
+	}
+}
+
+func TestHandleAppInterest_UnknownFields(t *testing.T) {
+	// Test that unknown fields are rejected due to DisallowUnknownFields
+	mock := &mockDB{}
+	h := &Handlers{db: mock}
+
+	payload := `{"email":"test@example.com","android":true,"ios":false,"country":"US","unknownField":"value"}`
+	req := httptest.NewRequest("POST", "/api/app-interest", strings.NewReader(payload))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	h.HandleAppInterest(w, req)
+
+	resp := w.Result()
+	if resp.StatusCode != http.StatusBadRequest {
+		t.Errorf("expected status BadRequest for unknown fields, got %v", resp.StatusCode)
 	}
 }
