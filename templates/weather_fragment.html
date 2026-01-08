@@ -1,20 +1,12 @@
 {{define "weather_fragment"}}
 <div id="weather-display" class="fade-in">
-    <div
-        id="resolved-location"
-        data-location="{{.Location}}"
-        style="display: none"
-    ></div>
+    <div id="resolved-location" data-location="{{.Location}}" hidden></div>
     {{if .Location}}
-    <h3 class="location-name">
-        {{.Location}}
-    </h3>
+    <h3 class="location-name">{{.Location}}</h3>
     {{end}}
     <div class="current-weather">
         <div class="main-info">
-            <span
-                class="material-symbols-rounded weather-icon-large"
-                style="font-size: 80px"
+            <span class="material-symbols-rounded weather-icon-large"
                 >{{.Current.Icon}}</span
             >
             <div>
@@ -22,10 +14,7 @@
                     {{.Current.Temperature}}°{{.Current.TemperatureUnit}}
                 </div>
                 <div class="condition">{{.Current.ShortForecast}}</div>
-                <div
-                    class="condition"
-                    style="font-size: 0.9rem; margin-top: 0.2rem"
-                >
+                <div class="condition">
                     H: {{.Current.HighTemp}}° L: {{.Current.LowTemp}}°
                 </div>
             </div>
@@ -65,9 +54,7 @@
             {{range .Forecast}}
             <div class="forecast-card">
                 <div class="forecast-name">{{.Name}}</div>
-                <span
-                    class="material-symbols-rounded weather-icon-small"
-                    style="font-size: 48px; display: block; margin: 0 auto"
+                <span class="material-symbols-rounded weather-icon-small"
                     >{{.Icon}}</span
                 >
                 <div class="forecast-temps">

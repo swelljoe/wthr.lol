@@ -82,24 +82,43 @@ func initSchema(db *sql.DB) error {
 	);
 
 	CREATE TRIGGER IF NOT EXISTS places_ai AFTER INSERT ON places BEGIN
-		INSERT INTO places_fts(rowid, name, state, zip, details) 
+		INSERT INTO places_fts(rowid, name, state, zip, details)
 		VALUES (new.id, new.name, new.state, new.zip, new.name || ', ' || new.state || ' ' || COALESCE(new.zip, ''));
 	END;
 
 	CREATE TRIGGER IF NOT EXISTS places_ad AFTER DELETE ON places BEGIN
-		INSERT INTO places_fts(places_fts, rowid, name, state, zip, details) 
+		INSERT INTO places_fts(places_fts, rowid, name, state, zip, details)
 		VALUES('delete', old.id, old.name, old.state, old.zip, old.name || ', ' || old.state || ' ' || COALESCE(old.zip, ''));
 	END;
 
 	CREATE TRIGGER IF NOT EXISTS places_au AFTER UPDATE ON places BEGIN
-		INSERT INTO places_fts(places_fts, rowid, name, state, zip, details) 
+		INSERT INTO places_fts(places_fts, rowid, name, state, zip, details)
 		VALUES('delete', old.id, old.name, old.state, old.zip, old.name || ', ' || old.state || ' ' || COALESCE(old.zip, ''));
-		INSERT INTO places_fts(rowid, name, state, zip, details) 
+		INSERT INTO places_fts(rowid, name, state, zip, details)
 		VALUES (new.id, new.name, new.state, new.zip, new.name || ', ' || new.state || ' ' || COALESCE(new.zip, ''));
 	END;
 	`
 	_, err = db.Exec(placesQuery)
-	return err
+	if err != nil {
+		return err
+	}
+
+	appQuery := `
+	CREATE TABLE IF NOT EXISTS app_interest (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		email TEXT NOT NULL,
+		android INTEGER NOT NULL DEFAULT 0,
+		ios INTEGER NOT NULL DEFAULT 0,
+		country TEXT,
+		created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+	);
+	`
+	_, err = db.Exec(appQuery)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // CacheEntry represents a cached weather response
@@ -138,7 +157,7 @@ func (db *DB) SetCachedWeather(lat, lon float64, data string, duration time.Dura
 	expiresAt := time.Now().Add(duration)
 
 	_, err := db.Exec(`
-		INSERT INTO weather_cache (id, data, expires_at) 
+		INSERT INTO weather_cache (id, data, expires_at)
 		VALUES (?, ?, ?)
 		ON CONFLICT(id) DO UPDATE SET
 			data = excluded.data,
@@ -185,7 +204,7 @@ func (db *DB) SearchPlaces(query string) ([]Place, error) {
 	ftsQuery := strings.Join(ftsParts, " AND ")
 
 	q := `
-	SELECT p.name, p.state, p.zip, p.latitude, p.longitude 
+	SELECT p.name, p.state, p.zip, p.latitude, p.longitude
 	FROM places p
 	JOIN places_fts ON p.id = places_fts.rowid
 	WHERE places_fts MATCH ?
@@ -239,4 +258,27 @@ func sanitizeFTSTerm(term string) string {
 		// Note: We intentionally keep ASCII-only to avoid issues with Unicode characters in FTS5
 	}
 	return strings.TrimSpace(result.String())
+}
+
+// SaveAppInterest inserts a new record into the app_interest table
+func (db *DB) SaveAppInterest(email string, android bool, ios bool, country string) error {
+	if db == nil {
+		return fmt.Errorf("database not initialized")
+	}
+
+	a := 0
+	if android {
+		a = 1
+	}
+	i := 0
+	if ios {
+		i = 1
+	}
+
+	_, err := db.Exec(`
+		INSERT INTO app_interest (email, android, ios, country)
+		VALUES (?, ?, ?, ?)
+	`, email, a, i, country)
+
+	return err
 }

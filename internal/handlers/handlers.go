@@ -6,6 +6,7 @@ import (
 	"html/template"
 	"log"
 	"net/http"
+	"net/mail"
 
 	"github.com/swelljoe/wthr.lol/internal/db"
 	"github.com/swelljoe/wthr.lol/internal/weather"
@@ -15,6 +16,7 @@ import (
 type Database interface {
 	SearchPlaces(query string) ([]db.Place, error)
 	Ping() error
+	SaveAppInterest(email string, android bool, ios bool, country string) error
 }
 
 // Handlers holds dependencies for HTTP handlers
@@ -32,8 +34,16 @@ func New(database *db.DB, wService *weather.Service) *Handlers {
 		log.Printf("Warning: Failed to parse templates: %v", err)
 	}
 
+	// Avoid assigning a typed nil *db.DB into the Database interface.
+	// If `database` is nil leave the interface nil so callers can safely
+	// check whether a database is available via `h.db == nil`.
+	var dbInterface Database
+	if database != nil {
+		dbInterface = database
+	}
+
 	return &Handlers{
-		db:        database,
+		db:        dbInterface,
 		weather:   wService,
 		templates: tmpl,
 	}
@@ -160,5 +170,58 @@ func (h *Handlers) HandleSearch(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	if _, err := w.Write(data); err != nil {
 		log.Printf("Response write error: %v", err)
+	}
+}
+
+// HandleAppInterest handles submissions from the app interest form.
+// Expects a POST with JSON body: { email, android, ios, country }
+func (h *Handlers) HandleAppInterest(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+
+	var payload struct {
+		Email   string `json:"email"`
+		Android bool   `json:"android"`
+		IOS     bool   `json:"ios"`
+		Country string `json:"country"`
+	}
+
+	dec := json.NewDecoder(r.Body)
+	dec.DisallowUnknownFields()
+	if err := dec.Decode(&payload); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	// Basic validation
+	if payload.Email == "" {
+		http.Error(w, "Email is required", http.StatusBadRequest)
+		return
+	}
+	if _, err := mail.ParseAddress(payload.Email); err != nil {
+		http.Error(w, "Invalid email format", http.StatusBadRequest)
+		return
+	}
+	if !payload.Android && !payload.IOS {
+		http.Error(w, "Please select at least one OS", http.StatusBadRequest)
+		return
+	}
+
+	if h.db != nil {
+		if err := h.db.SaveAppInterest(payload.Email, payload.Android, payload.IOS, payload.Country); err != nil {
+			log.Printf("Failed to save app interest: %v", err)
+			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+			return
+		}
+	} else {
+		// No database available; log the interest so it's not lost during development
+		log.Printf("App interest received (no DB): email=%s android=%t ios=%t country=%s", payload.Email, payload.Android, payload.IOS, payload.Country)
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	if _, err := w.Write([]byte(`{"status":"ok"}`)); err != nil {
+		log.Printf("failed to write app interest response: %v", err)
 	}
 }
