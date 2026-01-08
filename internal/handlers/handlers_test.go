@@ -366,7 +366,8 @@ func TestHandleAppInterest_MissingPlatformSelection(t *testing.T) {
 	}
 }
 
-func TestHandleAppInterest_SuccessAndroidOnly(t *testing.T) {
+// Helper function to create a mock DB that captures saved parameters
+func createAppInterestMockDB() (*mockDB, *string, *bool, *bool, *string) {
 	savedEmail := ""
 	savedAndroid := false
 	savedIOS := false
@@ -381,6 +382,12 @@ func TestHandleAppInterest_SuccessAndroidOnly(t *testing.T) {
 			return nil
 		},
 	}
+
+	return mock, &savedEmail, &savedAndroid, &savedIOS, &savedCountry
+}
+
+func TestHandleAppInterest_SuccessAndroidOnly(t *testing.T) {
+	mock, savedEmail, savedAndroid, savedIOS, savedCountry := createAppInterestMockDB()
 	h := &Handlers{db: mock}
 
 	payload := `{"email":"test@example.com","android":true,"ios":false,"country":"US"}`
@@ -409,35 +416,22 @@ func TestHandleAppInterest_SuccessAndroidOnly(t *testing.T) {
 		t.Errorf("expected status ok, got %v", result["status"])
 	}
 
-	if savedEmail != "test@example.com" {
-		t.Errorf("expected email test@example.com, got %s", savedEmail)
+	if *savedEmail != "test@example.com" {
+		t.Errorf("expected email test@example.com, got %s", *savedEmail)
 	}
-	if !savedAndroid {
-		t.Errorf("expected android to be true, got %v", savedAndroid)
+	if !*savedAndroid {
+		t.Errorf("expected android to be true, got %v", *savedAndroid)
 	}
-	if savedIOS {
-		t.Errorf("expected ios to be false, got %v", savedIOS)
+	if *savedIOS {
+		t.Errorf("expected ios to be false, got %v", *savedIOS)
 	}
-	if savedCountry != "US" {
-		t.Errorf("expected country US, got %s", savedCountry)
+	if *savedCountry != "US" {
+		t.Errorf("expected country US, got %s", *savedCountry)
 	}
 }
 
 func TestHandleAppInterest_SuccessIOSOnly(t *testing.T) {
-	savedEmail := ""
-	savedAndroid := false
-	savedIOS := false
-	savedCountry := ""
-
-	mock := &mockDB{
-		saveAppInterestFunc: func(email string, android bool, ios bool, country string) error {
-			savedEmail = email
-			savedAndroid = android
-			savedIOS = ios
-			savedCountry = country
-			return nil
-		},
-	}
+	mock, savedEmail, savedAndroid, savedIOS, savedCountry := createAppInterestMockDB()
 	h := &Handlers{db: mock}
 
 	payload := `{"email":"ios@example.com","android":false,"ios":true,"country":"CA"}`
@@ -452,35 +446,22 @@ func TestHandleAppInterest_SuccessIOSOnly(t *testing.T) {
 		t.Errorf("expected status OK, got %v", resp.StatusCode)
 	}
 
-	if savedEmail != "ios@example.com" {
-		t.Errorf("expected email ios@example.com, got %s", savedEmail)
+	if *savedEmail != "ios@example.com" {
+		t.Errorf("expected email ios@example.com, got %s", *savedEmail)
 	}
-	if savedAndroid {
-		t.Errorf("expected android to be false, got %v", savedAndroid)
+	if *savedAndroid {
+		t.Errorf("expected android to be false, got %v", *savedAndroid)
 	}
-	if !savedIOS {
-		t.Errorf("expected ios to be true, got %v", savedIOS)
+	if !*savedIOS {
+		t.Errorf("expected ios to be true, got %v", *savedIOS)
 	}
-	if savedCountry != "CA" {
-		t.Errorf("expected country CA, got %s", savedCountry)
+	if *savedCountry != "CA" {
+		t.Errorf("expected country CA, got %s", *savedCountry)
 	}
 }
 
 func TestHandleAppInterest_SuccessBothPlatforms(t *testing.T) {
-	savedEmail := ""
-	savedAndroid := false
-	savedIOS := false
-	savedCountry := ""
-
-	mock := &mockDB{
-		saveAppInterestFunc: func(email string, android bool, ios bool, country string) error {
-			savedEmail = email
-			savedAndroid = android
-			savedIOS = ios
-			savedCountry = country
-			return nil
-		},
-	}
+	mock, savedEmail, savedAndroid, savedIOS, savedCountry := createAppInterestMockDB()
 	h := &Handlers{db: mock}
 
 	payload := `{"email":"both@example.com","android":true,"ios":true,"country":"UK"}`
@@ -495,17 +476,17 @@ func TestHandleAppInterest_SuccessBothPlatforms(t *testing.T) {
 		t.Errorf("expected status OK, got %v", resp.StatusCode)
 	}
 
-	if savedEmail != "both@example.com" {
-		t.Errorf("expected email both@example.com, got %s", savedEmail)
+	if *savedEmail != "both@example.com" {
+		t.Errorf("expected email both@example.com, got %s", *savedEmail)
 	}
-	if !savedAndroid {
-		t.Errorf("expected android to be true, got %v", savedAndroid)
+	if !*savedAndroid {
+		t.Errorf("expected android to be true, got %v", *savedAndroid)
 	}
-	if !savedIOS {
-		t.Errorf("expected ios to be true, got %v", savedIOS)
+	if !*savedIOS {
+		t.Errorf("expected ios to be true, got %v", *savedIOS)
 	}
-	if savedCountry != "UK" {
-		t.Errorf("expected country UK, got %s", savedCountry)
+	if *savedCountry != "UK" {
+		t.Errorf("expected country UK, got %s", *savedCountry)
 	}
 }
 
@@ -563,16 +544,7 @@ func TestHandleAppInterest_NoDatabaseDevelopmentMode(t *testing.T) {
 
 func TestHandleAppInterest_EmptyCountry(t *testing.T) {
 	// Test that empty country is accepted (country is not validated as required)
-	savedEmail := ""
-	savedCountry := ""
-
-	mock := &mockDB{
-		saveAppInterestFunc: func(email string, android bool, ios bool, country string) error {
-			savedEmail = email
-			savedCountry = country
-			return nil
-		},
-	}
+	mock, savedEmail, savedAndroid, savedIOS, savedCountry := createAppInterestMockDB()
 	h := &Handlers{db: mock}
 
 	payload := `{"email":"test@example.com","android":true,"ios":false,"country":""}`
@@ -588,11 +560,17 @@ func TestHandleAppInterest_EmptyCountry(t *testing.T) {
 		t.Errorf("expected status OK for empty country, got %v", resp.StatusCode)
 	}
 
-	if savedEmail != "test@example.com" {
-		t.Errorf("expected email test@example.com, got %s", savedEmail)
+	if *savedEmail != "test@example.com" {
+		t.Errorf("expected email test@example.com, got %s", *savedEmail)
 	}
-	if savedCountry != "" {
-		t.Errorf("expected empty country, got %s", savedCountry)
+	if !*savedAndroid {
+		t.Errorf("expected android to be true, got %v", *savedAndroid)
+	}
+	if *savedIOS {
+		t.Errorf("expected ios to be false, got %v", *savedIOS)
+	}
+	if *savedCountry != "" {
+		t.Errorf("expected empty country, got %s", *savedCountry)
 	}
 }
 
