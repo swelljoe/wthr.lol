@@ -146,7 +146,17 @@ document.addEventListener("DOMContentLoaded", () => {
                 }
             })
             .catch(e => {
-                weatherDisplay.innerHTML = `<div class="error-card"><h3>Error</h3><p>${e.message}</p></div>`;
+                // Safely render error message without injecting HTML
+                weatherDisplay.innerHTML = "";
+                const errorCard = document.createElement("div");
+                errorCard.className = "error-card";
+                const heading = document.createElement("h3");
+                heading.textContent = "Error";
+                const messagePara = document.createElement("p");
+                messagePara.textContent = e.message;
+                errorCard.appendChild(heading);
+                errorCard.appendChild(messagePara);
+                weatherDisplay.appendChild(errorCard);
                 weatherDisplay.classList.remove("is-loading");
             });
     }
