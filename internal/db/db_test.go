@@ -242,3 +242,127 @@ func TestNewDB(t *testing.T) {
 		t.Errorf("Failed to ping DB: %v", err)
 	}
 }
+
+func TestSaveAppInterest(t *testing.T) {
+	testDB := setupTestDB(t)
+	defer testDB.Close()
+
+	tests := []struct {
+		name    string
+		email   string
+		android bool
+		ios     bool
+		country string
+		wantErr bool
+	}{
+		{
+			name:    "android only",
+			email:   "android@example.com",
+			android: true,
+			ios:     false,
+			country: "US",
+			wantErr: false,
+		},
+		{
+			name:    "ios only",
+			email:   "ios@example.com",
+			android: false,
+			ios:     true,
+			country: "CA",
+			wantErr: false,
+		},
+		{
+			name:    "both platforms",
+			email:   "both@example.com",
+			android: true,
+			ios:     true,
+			country: "GB",
+			wantErr: false,
+		},
+		{
+			name:    "neither platform",
+			email:   "neither@example.com",
+			android: false,
+			ios:     false,
+			country: "DE",
+			wantErr: false,
+		},
+		{
+			name:    "empty country",
+			email:   "nocountry@example.com",
+			android: true,
+			ios:     false,
+			country: "",
+			wantErr: false,
+		},
+		{
+			name:    "empty email",
+			email:   "",
+			android: true,
+			ios:     true,
+			country: "US",
+			wantErr: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := testDB.SaveAppInterest(tt.email, tt.android, tt.ios, tt.country)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("SaveAppInterest() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+
+			if !tt.wantErr {
+				// Verify the record was inserted
+				var email string
+				var android, ios int
+				var country string
+				err := testDB.QueryRow(
+					"SELECT email, android, ios, country FROM app_interest WHERE email = ? ORDER BY id DESC LIMIT 1",
+					tt.email,
+				).Scan(&email, &android, &ios, &country)
+
+				if err != nil {
+					t.Fatalf("Failed to query inserted record: %v", err)
+				}
+
+				if email != tt.email {
+					t.Errorf("Expected email %q, got %q", tt.email, email)
+				}
+
+				expectedAndroid := 0
+				if tt.android {
+					expectedAndroid = 1
+				}
+				if android != expectedAndroid {
+					t.Errorf("Expected android %d, got %d", expectedAndroid, android)
+				}
+
+				expectedIos := 0
+				if tt.ios {
+					expectedIos = 1
+				}
+				if ios != expectedIos {
+					t.Errorf("Expected ios %d, got %d", expectedIos, ios)
+				}
+
+				if country != tt.country {
+					t.Errorf("Expected country %q, got %q", tt.country, country)
+				}
+			}
+		})
+	}
+}
+
+func TestSaveAppInterestNilDB(t *testing.T) {
+	var db *DB
+	err := db.SaveAppInterest("test@example.com", true, true, "US")
+	if err == nil {
+		t.Error("Expected error for nil database, got nil")
+	}
+	expectedMsg := "database not initialized"
+	if err.Error() != expectedMsg {
+		t.Errorf("Expected error message %q, got %q", expectedMsg, err.Error())
+	}
+}
