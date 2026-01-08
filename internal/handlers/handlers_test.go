@@ -60,8 +60,9 @@ func TestHandleIndexNotFound(t *testing.T) {
 
 // mockDB is a mock implementation of the database for testing
 type mockDB struct {
-	searchPlacesFunc func(query string) ([]db.Place, error)
-	pingFunc         func() error
+	searchPlacesFunc    func(query string) ([]db.Place, error)
+	pingFunc            func() error
+	saveAppInterestFunc func(email string, android bool, ios bool, country string) error
 }
 
 func (m *mockDB) SearchPlaces(query string) ([]db.Place, error) {
@@ -74,6 +75,13 @@ func (m *mockDB) SearchPlaces(query string) ([]db.Place, error) {
 func (m *mockDB) Ping() error {
 	if m.pingFunc != nil {
 		return m.pingFunc()
+	}
+	return nil
+}
+
+func (m *mockDB) SaveAppInterest(email string, android bool, ios bool, country string) error {
+	if m.saveAppInterestFunc != nil {
+		return m.saveAppInterestFunc(email, android, ios, country)
 	}
 	return nil
 }

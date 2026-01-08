@@ -57,6 +57,8 @@ func main() {
 	mux.HandleFunc("/health", h.HandleHealth)
 	mux.HandleFunc("/api/weather", h.HandleWeatherAPI)
 	mux.HandleFunc("/api/search", h.HandleSearch)
+	// Endpoint to collect app interest submissions (email, platforms, country)
+	mux.HandleFunc("/api/app-interest", h.HandleAppInterest)
 
 	// Start server
 	addr := fmt.Sprintf(":%s", port)

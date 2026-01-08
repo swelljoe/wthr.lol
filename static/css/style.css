@@ -1,8 +1,8 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap');
-@import url('https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@48,400,1,0');
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@48,400,1,0");
 
 .material-symbols-rounded {
-    font-family: 'Material Symbols Rounded';
+    font-family: "Material Symbols Rounded";
     font-weight: normal;
     font-style: normal;
     font-size: 24px;
@@ -29,8 +29,12 @@
 }
 
 body {
-    font-family: 'Inter', sans-serif;
-    background: linear-gradient(135deg, var(--bg-gradient-start), var(--bg-gradient-end));
+    font-family: "Inter", sans-serif;
+    background: linear-gradient(
+        135deg,
+        var(--bg-gradient-start),
+        var(--bg-gradient-end)
+    );
     color: var(--text-primary);
     min-height: 100vh;
     margin: 0;
@@ -269,6 +273,209 @@ button.secondary:hover {
 }
 
 /* ... existing styles ... */
+/* App interest modal: base layout and accessibility (hidden by default) */
+#app-interest-modal,
+.modal-wrapper {
+    /* Hidden by default; prefer controlling visibility through aria-hidden */
+    display: none !important;
+    position: fixed;
+    inset: 0;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    padding: 1.5rem;
+}
+
+/* Prefer controlling visibility through the aria-hidden attribute.
+   When aria-hidden is explicitly false, make the modal visible.
+   Use !important so CSS visibility wins even if JS sets inline style.display. */
+#app-interest-modal[aria-hidden="false"] {
+    display: flex !important;
+    align-items: center;
+    justify-content: center;
+}
+#app-interest-modal[aria-hidden="true"] {
+    display: none !important;
+}
+
+/* Overlay dims the page behind the dialog */
+#app-interest-modal .modal-overlay,
+.modal-overlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(2, 6, 23, 0.65);
+    backdrop-filter: blur(2px);
+    z-index: 1001;
+}
+
+/* App interest card (dialog) */
+#app-interest-modal .app-interest-card {
+    /* Slightly less transparent than the general cards for better readability */
+    background: rgba(255, 255, 255, 0.14);
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    color: var(--text-primary);
+
+    position: relative;
+    z-index: 1002;
+    width: 100%;
+    max-width: 560px;
+    border-radius: 0.75rem;
+    padding: 1.25rem 1.5rem;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.6);
+}
+
+/* Modal header: position & layout; reserve room for an absolute close button */
+#app-interest-modal .modal-header {
+    position: relative;
+    display: flex;
+    justify-content: flex-start;
+    align-items: flex-start;
+    gap: 1rem;
+    margin-bottom: 0.5rem;
+    /* Reserve room so the close button doesn't overlap the heading */
+    padding-right: 3rem;
+}
+
+/* Close button positioned top-right of the dialog */
+#app-interest-modal #app-interest-close {
+    position: absolute;
+    top: 0.6rem;
+    right: 0.6rem;
+    z-index: 1003;
+    min-width: 40px;
+    height: 36px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.2rem 0.45rem;
+    border-radius: 6px;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+/* Slight tweak for narrow screens */
+@media (max-width: 520px) {
+    #app-interest-modal #app-interest-close {
+        top: 0.45rem;
+        right: 0.45rem;
+    }
+    #app-interest-modal .modal-header {
+        padding-right: 2rem;
+    }
+}
+
+/* Inputs/selects/textareas inside the modal should be darker for contrast */
+#app-interest-modal .app-interest-card input,
+#app-interest-modal .app-interest-card select,
+#app-interest-modal .app-interest-card textarea {
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    color: var(--text-primary);
+    padding: 0.6rem 0.75rem;
+    border-radius: 0.5rem;
+}
+
+/* Labels should be clearly visible */
+#app-interest-modal .app-interest-card label {
+    color: var(--text-primary);
+}
+
+/* Fieldset alignment */
+#app-interest-modal .modal-fieldset {
+    border: none;
+    margin: 0 0 1rem 0;
+    padding: 0;
+}
+#app-interest-modal .modal-fieldset legend {
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+}
+
+/* Platform options inline */
+#app-interest-modal .platform-option {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-right: 0.75rem;
+}
+
+/* Make secondary buttons readable against the darker modal */
+#app-interest-modal .app-interest-card .secondary {
+    background: rgba(255, 255, 255, 0.06);
+    color: var(--text-primary);
+}
+
+/* Actions layout */
+#app-interest-modal .modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.5rem;
+    margin-top: 1rem;
+}
+
+/* Make buttons slightly larger for touch and visibility */
+#app-interest-modal .app-interest-card button {
+    min-width: 96px;
+}
+
+/* Thank you / success state */
+#app-interest-modal .modal-thanks {
+    text-align: center;
+    color: var(--text-primary);
+}
+
+/* Error message */
+#app-interest-modal .modal-error {
+    display: none;
+    color: var(--error-color);
+    font-weight: 600;
+    margin-top: 0.25rem;
+}
+
+/* Utility class to hide elements (useful for toggling via JS) */
+.u-hidden {
+    display: none !important;
+}
+
+/* Show state for modal error (toggle via JS using .is-visible) */
+#app-interest-modal .modal-error.is-visible {
+    display: block;
+}
+
+/* Description */
+#app-interest-modal .modal-desc {
+    color: var(--text-secondary);
+    margin-bottom: 1rem;
+}
+
+/* Modal form groups: replaces inline layout styles with a CSS rule
+   (so the template doesn't need inline style="" attributes) */
+#app-interest-modal .modal-form > div {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+}
+
+/* Mobile adjustments */
+@media (max-width: 520px) {
+    #app-interest-modal,
+    .modal-wrapper {
+        padding: 1rem;
+    }
+
+    #app-interest-modal .app-interest-card {
+        padding: 1rem;
+        border-radius: 0.5rem;
+    }
+}
+
+/* Respect reduced motion preferences */
+@media (prefers-reduced-motion: reduce) {
+    #app-interest-modal .app-interest-card {
+        transition: none;
+    }
+}
 
 .forecast-temps {
     display: flex;
@@ -292,6 +499,53 @@ button.secondary:hover {
     color: #60a5fa;
     /* Light blue for water/precip */
     margin-bottom: 0.25rem;
+}
+
+/* Footer layout: right-align the app-interest link on the same line */
+.footer-meta {
+    margin-top: 1.5rem;
+}
+.footer-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+}
+.footer-row p {
+    margin: 0;
+}
+.footer-right {
+    margin: 0;
+    text-align: right;
+}
+
+/* On small screens stack the footer items */
+@media (max-width: 520px) {
+    .footer-row {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.5rem;
+    }
+    .footer-right {
+        text-align: left;
+    }
+}
+
+/* Accent link: improved contrast and accessible focus ring */
+.accent-link {
+    color: var(--accent-color);
+    text-decoration: none;
+    font-weight: 600;
+}
+.accent-link:hover,
+.accent-link:focus {
+    color: #ffd6eb;
+    text-decoration: underline;
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(236, 72, 153, 0.18);
+}
+.accent-link:focus {
+    border-radius: 3px;
 }
 
 /* Autocomplete Suggestions */
@@ -350,3 +604,78 @@ button.secondary:hover {
     color: var(--text-secondary);
     font-size: 0.875rem;
 }
+
+/* Icon sizes (moved from inline attributes into CSS so markup is simpler) */
+.material-symbols-rounded.weather-icon-large {
+    font-size: 80px;
+}
+
+/* Small forecast icon */
+.material-symbols-rounded.weather-icon-small {
+    font-size: 48px;
+    display: block;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+/* Slightly smaller detail line for the current forecast (replaces inline styles) */
+#weather-display .current-weather .condition + .condition {
+    font-size: 0.9rem;
+    margin-top: 0.2rem;
+    color: var(--text-secondary);
+}
+
+/* Center the initial message paragraph (replaces inline style on the <p>) */
+#weather-display > p {
+    text-align: center;
+    color: var(--text-secondary);
+}
+
+/* Error card used by the weather fetch error handler */
+.error-card {
+    text-align: center;
+    padding: 2rem;
+    color: var(--error-color);
+}
+
+/* Loading state for the weather display (toggle via JS by adding/removing `is-loading`) */
+#weather-display.is-loading {
+    opacity: 0.6;
+    pointer-events: none; /* prevent interactions while loading */
+    transition: opacity 180ms ease-in-out;
+}
+
+/* Small CSS spinner overlay (pure CSS) */
+#weather-display.is-loading::after {
+    content: "";
+    display: block;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    border: 3px solid rgba(255, 255, 255, 0.12);
+    border-top-color: rgba(255, 255, 255, 0.8);
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    margin-left: -14px;
+    margin-top: -14px;
+    animation: spin 1s linear infinite;
+}
+
+/* Ensure the container is a positioning context for the spinner overlay */
+#weather-display {
+    position: relative;
+}
+
+/* Simple spinner animation */
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* Small helper to keep modal markup minimal (replaces the previous inline wrapper styles) */
+/* duplicate modal-form > div removed (consolidated earlier in file) */
+
+/* Legend style moved from inline attribute to CSS (see fieldset edit above) */
+/* duplicate .modal-fieldset legend removed (consolidated earlier in file) */
