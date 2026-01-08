@@ -30,7 +30,16 @@ document.addEventListener("DOMContentLoaded", () => {
                         if (places && places.length > 0) {
                             places.forEach(p => {
                                 const li = document.createElement("li");
-                                li.innerHTML = `<span class="place-name">${p.name}</span><span class="place-meta">${p.state} ${p.zip || ''}</span>`;
+                                const nameSpan = document.createElement("span");
+                                nameSpan.className = "place-name";
+                                nameSpan.textContent = p.name || "";
+                                const metaSpan = document.createElement("span");
+                                metaSpan.className = "place-meta";
+                                const stateText = p.state || "";
+                                const zipText = p.zip || "";
+                                metaSpan.textContent = `${stateText}${stateText && zipText ? " " : ""}${zipText}`;
+                                li.appendChild(nameSpan);
+                                li.appendChild(metaSpan);
                                 li.onclick = () => {
                                     locationInput.value = `${p.name}, ${p.state}`;
                                     suggestionsList.classList.remove("visible");
