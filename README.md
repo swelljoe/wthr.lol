@@ -4,18 +4,18 @@
 
 Because I'm tired of ad-filled weather sites and apps
 
-A simple, ad-free weather application built with Go, SQLite, HTML, Datastar, and Pico.css.
+A simple, ad-free weather application built with Go, SQLite, and Pico.css.
 
 ## Features
 
-- No bullshit, just weather.
-- No ads, no tracking.
+- No ads, just weather.
+- No tracking, just weather.
 - That's right, just weather.
 
 ## Tech Stack
 
 - **Backend**: Go + SQLite
-- **Frontend**: HTML + Datastar
+- **Frontend**: HTML+vanilla JavaScript
 - **Styling**: Pico.css
 
 ## Project Structure
