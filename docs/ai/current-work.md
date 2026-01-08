@@ -24,6 +24,7 @@
 - Fixed Datastar store initialization by moving it to main element and using object literal syntax
 - Reverted Datastar integration and returned to optimized vanilla JavaScript implementation
 - Restored auto-location on page load functionality
+- Upgraded Service Worker to v2 with 'Network First' strategy to ensure users always receive the latest updates
 
 ## Blockers
 - None
