@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/swelljoe/wthr.lol/internal/db"
@@ -296,5 +297,96 @@ func TestHandleSearch_QueryValidation(t *testing.T) {
 				t.Errorf("expected results for query %q, got none", tt.query)
 			}
 		})
+	}
+}
+
+func TestHandleAppInterest_ValidEmail(t *testing.T) {
+	mock := &mockDB{
+		saveAppInterestFunc: func(email string, android bool, ios bool, country string) error {
+			return nil
+		},
+	}
+
+	h := &Handlers{db: mock}
+
+	tests := []struct {
+		name  string
+		email string
+	}{
+		{"simple email", "user@example.com"},
+		{"email with subdomain", "user@mail.example.com"},
+		{"email with plus", "user+tag@example.com"},
+		{"email with dots", "first.last@example.com"},
+		{"email with hyphen", "user@my-domain.com"},
+		{"email with numbers", "user123@example.com"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			payload := `{"email":"` + tt.email + `","android":true,"ios":false,"country":"US"}`
+			req := httptest.NewRequest("POST", "/app-interest", strings.NewReader(payload))
+			req.Header.Set("Content-Type", "application/json")
+
+			w := httptest.NewRecorder()
+
+			h.HandleAppInterest(w, req)
+
+			resp := w.Result()
+			if resp.StatusCode != http.StatusOK {
+				t.Errorf("expected status OK for email %q, got %v", tt.email, resp.StatusCode)
+			}
+		})
+	}
+}
+
+func TestHandleAppInterest_InvalidEmail(t *testing.T) {
+	mock := &mockDB{}
+	h := &Handlers{db: mock}
+
+	tests := []struct {
+		name  string
+		email string
+	}{
+		{"missing @", "userexample.com"},
+		{"missing domain", "user@"},
+		{"missing local part", "@example.com"},
+		{"double @", "user@@example.com"},
+		{"spaces", "user name@example.com"},
+		{"invalid characters", "user<>@example.com"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			payload := `{"email":"` + tt.email + `","android":true,"ios":false,"country":"US"}`
+			req := httptest.NewRequest("POST", "/app-interest", strings.NewReader(payload))
+			req.Header.Set("Content-Type", "application/json")
+
+			w := httptest.NewRecorder()
+
+			h.HandleAppInterest(w, req)
+
+			resp := w.Result()
+			if resp.StatusCode != http.StatusBadRequest {
+				t.Errorf("expected status BadRequest for email %q, got %v", tt.email, resp.StatusCode)
+			}
+		})
+	}
+}
+
+func TestHandleAppInterest_EmptyEmail(t *testing.T) {
+	mock := &mockDB{}
+	h := &Handlers{db: mock}
+
+	payload := `{"email":"","android":true,"ios":false,"country":"US"}`
+	req := httptest.NewRequest("POST", "/app-interest", strings.NewReader(payload))
+	req.Header.Set("Content-Type", "application/json")
+
+	w := httptest.NewRecorder()
+
+	h.HandleAppInterest(w, req)
+
+	resp := w.Result()
+	if resp.StatusCode != http.StatusBadRequest {
+		t.Errorf("expected status BadRequest for empty email, got %v", resp.StatusCode)
 	}
 }
