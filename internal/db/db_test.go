@@ -314,13 +314,12 @@ func TestSaveAppInterest(t *testing.T) {
 			}
 
 			if !tt.wantErr {
-				// Verify the record was inserted
+				// Verify the record was inserted by checking the most recent record
 				var email string
 				var android, ios int
 				var country string
 				err := testDB.QueryRow(
-					"SELECT email, android, ios, country FROM app_interest WHERE email = ? ORDER BY id DESC LIMIT 1",
-					tt.email,
+					"SELECT email, android, ios, country FROM app_interest ORDER BY id DESC LIMIT 1",
 				).Scan(&email, &android, &ios, &country)
 
 				if err != nil {
