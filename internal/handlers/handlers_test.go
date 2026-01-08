@@ -319,6 +319,7 @@ func TestHandleAppInterest_InvalidJSON(t *testing.T) {
 	mock := &mockDB{}
 	h := &Handlers{db: mock}
 
+	// Test with syntactically invalid JSON (missing value for field)
 	payload := `{"email":"test@example.com","android":true,"invalid"}`
 	req := httptest.NewRequest("POST", "/api/app-interest", strings.NewReader(payload))
 	req.Header.Set("Content-Type", "application/json")
