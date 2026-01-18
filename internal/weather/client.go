@@ -145,9 +145,11 @@ func (c *Client) GetAlerts(lat, lon float64) (*AlertsResponse, error) {
 	return &al, nil
 }
 
-// ObservationStationsResponse represents the /points/.../stations response
+// ObservationStationsResponse represents the /points/.../stations response as GeoJSON FeatureCollection
 type ObservationStationsResponse struct {
-	ObservationStations []string `json:"observationStations"`
+	Features []struct {
+		ID string `json:"id"`
+	} `json:"features"`
 }
 
 // ObservationResponse represents the /stations/.../observations/latest response
@@ -172,7 +174,15 @@ func (c *Client) GetObservationStations(stationsURL string) ([]string, error) {
 	if err := json.Unmarshal(data, &resp); err != nil {
 		return nil, err
 	}
-	return resp.ObservationStations, nil
+	
+	// Extract station IDs from features
+	stations := make([]string, 0, len(resp.Features))
+	for _, feature := range resp.Features {
+		if feature.ID != "" {
+			stations = append(stations, feature.ID)
+		}
+	}
+	return stations, nil
 }
 
 // GetLatestObservation fetches the latest observation for a station URL
