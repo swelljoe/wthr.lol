@@ -371,3 +371,425 @@ func TestObservationTemperature_Rounding(t *testing.T) {
 		})
 	}
 }
+
+// Helper functions for creating test data
+
+func createMockForecastResponse(periods []struct {
+	Name        string
+	StartTime   string
+	IsDaytime   bool
+	Temperature int
+	Unit        string
+	WindSpeed   string
+	WindDir     string
+	Icon        string
+	ShortFcst   string
+	PrecipValue int
+}) *ForecastResponse {
+	fc := &ForecastResponse{}
+	for _, p := range periods {
+		fc.Properties.Periods = append(fc.Properties.Periods, struct {
+			Name                       string `json:"name"`
+			StartTime                  string `json:"startTime"`
+			IsDaytime                  bool   `json:"isDaytime"`
+			Temperature                int    `json:"temperature"`
+			TemperatureUnit            string `json:"temperatureUnit"`
+			ProbabilityOfPrecipitation struct {
+				Value int `json:"value"`
+			} `json:"probabilityOfPrecipitation"`
+			WindSpeed        string `json:"windSpeed"`
+			WindDirection    string `json:"windDirection"`
+			Icon             string `json:"icon"`
+			ShortForecast    string `json:"shortForecast"`
+			DetailedForecast string `json:"detailedForecast"`
+		}{
+			Name:            p.Name,
+			StartTime:       p.StartTime,
+			IsDaytime:       p.IsDaytime,
+			Temperature:     p.Temperature,
+			TemperatureUnit: p.Unit,
+			WindSpeed:       p.WindSpeed,
+			WindDirection:   p.WindDir,
+			Icon:            p.Icon,
+			ShortForecast:   p.ShortFcst,
+			ProbabilityOfPrecipitation: struct {
+				Value int `json:"value"`
+			}{Value: p.PrecipValue},
+		})
+	}
+	return fc
+}
+
+func createMockAlertsResponse() *AlertsResponse {
+	return &AlertsResponse{
+		Features: []struct {
+			Properties struct {
+				Event       string `json:"event"`
+				Headline    string `json:"headline"`
+				Description string `json:"description"`
+				Severity    string `json:"severity"`
+				AreaDesc    string `json:"areaDesc"`
+			} `json:"properties"`
+		}{},
+	}
+}
+
+// TestTransform_HourlyNil tests transform when hourly forecast (hc) is nil
+func TestTransform_HourlyNil(t *testing.T) {
+	fc := createMockForecastResponse([]struct {
+		Name        string
+		StartTime   string
+		IsDaytime   bool
+		Temperature int
+		Unit        string
+		WindSpeed   string
+		WindDir     string
+		Icon        string
+		ShortFcst   string
+		PrecipValue int
+	}{
+		{Name: "Today", IsDaytime: true, Temperature: 75, Unit: "F", WindSpeed: "10 mph", WindDir: "N", Icon: "https://api.weather.gov/icons/land/day/sunny", ShortFcst: "Sunny", PrecipValue: 10},
+	})
+	al := createMockAlertsResponse()
+	tempValue := 72.0
+	obs := createMockObservation(&tempValue, "wmoUnit:degC", "Clear")
+
+	wd, err := transform(fc, nil, al, &obs)
+	if err != nil {
+		t.Fatalf("transform failed: %v", err)
+	}
+
+	// When hc is nil, Hourly should be empty
+	if len(wd.Hourly) != 0 {
+		t.Errorf("Expected Hourly to be empty when hc is nil, got %d items", len(wd.Hourly))
+	}
+
+	// Current should be populated from fc (forecast) fallback
+	if wd.Current.Temperature != 162 { // 72°C = ~162°F
+		t.Errorf("Expected Current.Temperature to be 162 from observation, got %d", wd.Current.Temperature)
+	}
+	if wd.Current.TemperatureUnit != "F" {
+		t.Errorf("Expected Current.TemperatureUnit to be F, got %s", wd.Current.TemperatureUnit)
+	}
+}
+
+// TestTransform_ObservationNil tests transform when observation (obs) is nil
+func TestTransform_ObservationNil(t *testing.T) {
+	hc := createMockForecastResponse([]struct {
+		Name        string
+		StartTime   string
+		IsDaytime   bool
+		Temperature int
+		Unit        string
+		WindSpeed   string
+		WindDir     string
+		Icon        string
+		ShortFcst   string
+		PrecipValue int
+	}{
+		{Name: "Now", StartTime: "2024-01-15T15:00:00Z", IsDaytime: true, Temperature: 68, Unit: "F", WindSpeed: "5 mph", WindDir: "NE", Icon: "https://api.weather.gov/icons/land/day/cloudy", ShortFcst: "Cloudy", PrecipValue: 20},
+		{Name: "+1h", StartTime: "2024-01-15T16:00:00Z", IsDaytime: true, Temperature: 69, Unit: "F", WindSpeed: "5 mph", WindDir: "NE", Icon: "https://api.weather.gov/icons/land/day/cloudy", ShortFcst: "Cloudy", PrecipValue: 20},
+	})
+	fc := createMockForecastResponse([]struct {
+		Name        string
+		StartTime   string
+		IsDaytime   bool
+		Temperature int
+		Unit        string
+		WindSpeed   string
+		WindDir     string
+		Icon        string
+		ShortFcst   string
+		PrecipValue int
+	}{
+		{Name: "Today", IsDaytime: true, Temperature: 75, Unit: "F", WindSpeed: "10 mph", WindDir: "N", Icon: "https://api.weather.gov/icons/land/day/sunny", ShortFcst: "Sunny", PrecipValue: 10},
+	})
+	al := createMockAlertsResponse()
+
+	wd, err := transform(fc, hc, al, nil)
+	if err != nil {
+		t.Fatalf("transform failed: %v", err)
+	}
+
+	// Hourly should be populated from hc
+	if len(wd.Hourly) != 2 {
+		t.Errorf("Expected Hourly to have 2 items, got %d", len(wd.Hourly))
+	}
+
+	// Current should be populated from hc, not overridden by observation
+	if wd.Current.Temperature != 68 {
+		t.Errorf("Expected Current.Temperature to be 68 from hc, got %d", wd.Current.Temperature)
+	}
+	if wd.Current.TemperatureUnit != "F" {
+		t.Errorf("Expected Current.TemperatureUnit to be F, got %s", wd.Current.TemperatureUnit)
+	}
+}
+
+// TestTransform_BothHourlyAndObservationPresent tests transform when both hc and obs are present
+func TestTransform_BothHourlyAndObservationPresent(t *testing.T) {
+	hc := createMockForecastResponse([]struct {
+		Name        string
+		StartTime   string
+		IsDaytime   bool
+		Temperature int
+		Unit        string
+		WindSpeed   string
+		WindDir     string
+		Icon        string
+		ShortFcst   string
+		PrecipValue int
+	}{
+		{Name: "Now", StartTime: "2024-01-15T15:00:00Z", IsDaytime: true, Temperature: 68, Unit: "F", WindSpeed: "5 mph", WindDir: "NE", Icon: "https://api.weather.gov/icons/land/day/cloudy", ShortFcst: "Cloudy", PrecipValue: 20},
+		{Name: "+1h", StartTime: "2024-01-15T16:00:00Z", IsDaytime: true, Temperature: 69, Unit: "F", WindSpeed: "6 mph", WindDir: "NE", Icon: "https://api.weather.gov/icons/land/day/cloudy", ShortFcst: "Cloudy", PrecipValue: 25},
+		{Name: "+2h", StartTime: "2024-01-15T17:00:00Z", IsDaytime: true, Temperature: 70, Unit: "F", WindSpeed: "7 mph", WindDir: "E", Icon: "https://api.weather.gov/icons/land/day/rain", ShortFcst: "Light Rain", PrecipValue: 30},
+	})
+	fc := createMockForecastResponse([]struct {
+		Name        string
+		StartTime   string
+		IsDaytime   bool
+		Temperature int
+		Unit        string
+		WindSpeed   string
+		WindDir     string
+		Icon        string
+		ShortFcst   string
+		PrecipValue int
+	}{
+		{Name: "Today", IsDaytime: true, Temperature: 75, Unit: "F", WindSpeed: "10 mph", WindDir: "N", Icon: "https://api.weather.gov/icons/land/day/sunny", ShortFcst: "Sunny", PrecipValue: 10},
+	})
+	al := createMockAlertsResponse()
+	tempValue := 20.0 // 20°C = 68°F
+	obs := createMockObservation(&tempValue, "wmoUnit:degC", "Clear")
+
+	wd, err := transform(fc, hc, al, &obs)
+	if err != nil {
+		t.Fatalf("transform failed: %v", err)
+	}
+
+	// Hourly should be populated from hc with first 5 periods
+	if len(wd.Hourly) != 3 {
+		t.Errorf("Expected Hourly to have 3 items, got %d", len(wd.Hourly))
+	}
+
+	// Verify hourly data
+	if wd.Hourly[0].Temperature != 68 {
+		t.Errorf("Expected Hourly[0].Temperature to be 68, got %d", wd.Hourly[0].Temperature)
+	}
+	if wd.Hourly[0].Name != "3 PM UTC" {
+		t.Errorf("Expected Hourly[0].Name to be '3 PM UTC', got %s", wd.Hourly[0].Name)
+	}
+
+	// Current temperature should be overridden by observation
+	if wd.Current.Temperature != 68 {
+		t.Errorf("Expected Current.Temperature to be 68 (from observation 20°C), got %d", wd.Current.Temperature)
+	}
+	if wd.Current.TemperatureUnit != "F" {
+		t.Errorf("Expected Current.TemperatureUnit to be F, got %s", wd.Current.TemperatureUnit)
+	}
+
+	// Other current fields should still come from hc
+	if wd.Current.ShortForecast != "Cloudy" {
+		t.Errorf("Expected Current.ShortForecast to be 'Cloudy' from hc, got %s", wd.Current.ShortForecast)
+	}
+	if wd.Current.WindSpeed != "5 mph" {
+		t.Errorf("Expected Current.WindSpeed to be '5 mph' from hc, got %s", wd.Current.WindSpeed)
+	}
+}
+
+// TestTransform_CurrentFromHourly tests that current condition is populated from hourly when available
+func TestTransform_CurrentFromHourly(t *testing.T) {
+	hc := createMockForecastResponse([]struct {
+		Name        string
+		StartTime   string
+		IsDaytime   bool
+		Temperature int
+		Unit        string
+		WindSpeed   string
+		WindDir     string
+		Icon        string
+		ShortFcst   string
+		PrecipValue int
+	}{
+		{Name: "Now", StartTime: "2024-01-15T15:00:00Z", IsDaytime: true, Temperature: 65, Unit: "F", WindSpeed: "8 mph", WindDir: "SW", Icon: "https://api.weather.gov/icons/land/day/partly-cloudy", ShortFcst: "Partly Cloudy", PrecipValue: 15},
+	})
+	al := createMockAlertsResponse()
+
+	wd, err := transform(nil, hc, al, nil)
+	if err != nil {
+		t.Fatalf("transform failed: %v", err)
+	}
+
+	// Current should be populated from hc (first period)
+	if wd.Current.Temperature != 65 {
+		t.Errorf("Expected Current.Temperature to be 65 from hc, got %d", wd.Current.Temperature)
+	}
+	if wd.Current.TemperatureUnit != "F" {
+		t.Errorf("Expected Current.TemperatureUnit to be F, got %s", wd.Current.TemperatureUnit)
+	}
+	if wd.Current.ShortForecast != "Partly Cloudy" {
+		t.Errorf("Expected Current.ShortForecast to be 'Partly Cloudy', got %s", wd.Current.ShortForecast)
+	}
+	if wd.Current.WindSpeed != "8 mph" {
+		t.Errorf("Expected Current.WindSpeed to be '8 mph', got %s", wd.Current.WindSpeed)
+	}
+	if wd.Current.WindDirection != "SW" {
+		t.Errorf("Expected Current.WindDirection to be 'SW', got %s", wd.Current.WindDirection)
+	}
+	if wd.Current.Precipitation != 15 {
+		t.Errorf("Expected Current.Precipitation to be 15, got %d", wd.Current.Precipitation)
+	}
+}
+
+// TestTransform_CurrentFallbackToForecast tests that current condition falls back to forecast when hourly is not available
+func TestTransform_CurrentFallbackToForecast(t *testing.T) {
+	fc := createMockForecastResponse([]struct {
+		Name        string
+		StartTime   string
+		IsDaytime   bool
+		Temperature int
+		Unit        string
+		WindSpeed   string
+		WindDir     string
+		Icon        string
+		ShortFcst   string
+		PrecipValue int
+	}{
+		{Name: "Today", IsDaytime: true, Temperature: 72, Unit: "F", WindSpeed: "12 mph", WindDir: "NW", Icon: "https://api.weather.gov/icons/land/day/sunny", ShortFcst: "Sunny", PrecipValue: 5},
+	})
+	al := createMockAlertsResponse()
+
+	wd, err := transform(fc, nil, al, nil)
+	if err != nil {
+		t.Fatalf("transform failed: %v", err)
+	}
+
+	// Current should be populated from fc (forecast) since hc is nil
+	if wd.Current.Temperature != 72 {
+		t.Errorf("Expected Current.Temperature to be 72 from fc, got %d", wd.Current.Temperature)
+	}
+	if wd.Current.TemperatureUnit != "F" {
+		t.Errorf("Expected Current.TemperatureUnit to be F, got %s", wd.Current.TemperatureUnit)
+	}
+	if wd.Current.ShortForecast != "Sunny" {
+		t.Errorf("Expected Current.ShortForecast to be 'Sunny', got %s", wd.Current.ShortForecast)
+	}
+	if wd.Current.WindSpeed != "12 mph" {
+		t.Errorf("Expected Current.WindSpeed to be '12 mph', got %s", wd.Current.WindSpeed)
+	}
+}
+
+// TestTransform_HourlyLimitsFiveItems tests that hourly forecast is limited to 5 items
+func TestTransform_HourlyLimitsFiveItems(t *testing.T) {
+	hc := createMockForecastResponse([]struct {
+		Name        string
+		StartTime   string
+		IsDaytime   bool
+		Temperature int
+		Unit        string
+		WindSpeed   string
+		WindDir     string
+		Icon        string
+		ShortFcst   string
+		PrecipValue int
+	}{
+		{Name: "h1", StartTime: "2024-01-15T15:00:00Z", IsDaytime: true, Temperature: 65, Unit: "F", WindSpeed: "5 mph", WindDir: "N", Icon: "icon1", ShortFcst: "F1", PrecipValue: 10},
+		{Name: "h2", StartTime: "2024-01-15T16:00:00Z", IsDaytime: true, Temperature: 66, Unit: "F", WindSpeed: "5 mph", WindDir: "N", Icon: "icon2", ShortFcst: "F2", PrecipValue: 15},
+		{Name: "h3", StartTime: "2024-01-15T17:00:00Z", IsDaytime: true, Temperature: 67, Unit: "F", WindSpeed: "5 mph", WindDir: "N", Icon: "icon3", ShortFcst: "F3", PrecipValue: 20},
+		{Name: "h4", StartTime: "2024-01-15T18:00:00Z", IsDaytime: true, Temperature: 68, Unit: "F", WindSpeed: "5 mph", WindDir: "N", Icon: "icon4", ShortFcst: "F4", PrecipValue: 25},
+		{Name: "h5", StartTime: "2024-01-15T19:00:00Z", IsDaytime: true, Temperature: 69, Unit: "F", WindSpeed: "5 mph", WindDir: "N", Icon: "icon5", ShortFcst: "F5", PrecipValue: 30},
+		{Name: "h6", StartTime: "2024-01-15T20:00:00Z", IsDaytime: false, Temperature: 64, Unit: "F", WindSpeed: "5 mph", WindDir: "N", Icon: "icon6", ShortFcst: "F6", PrecipValue: 35},
+		{Name: "h7", StartTime: "2024-01-15T21:00:00Z", IsDaytime: false, Temperature: 63, Unit: "F", WindSpeed: "5 mph", WindDir: "N", Icon: "icon7", ShortFcst: "F7", PrecipValue: 40},
+	})
+	al := createMockAlertsResponse()
+
+	wd, err := transform(nil, hc, al, nil)
+	if err != nil {
+		t.Fatalf("transform failed: %v", err)
+	}
+
+	// Should only have first 5 hourly items
+	if len(wd.Hourly) != 5 {
+		t.Errorf("Expected Hourly to be limited to 5 items, got %d", len(wd.Hourly))
+	}
+
+	// Verify we got the first 5, not the last 5
+	if wd.Hourly[4].Temperature != 69 {
+		t.Errorf("Expected 5th hourly item to have temperature 69, got %d", wd.Hourly[4].Temperature)
+	}
+}
+
+// TestTransform_ObservationOverridesCurrentTemperature tests that observation temperature overrides current
+func TestTransform_ObservationOverridesCurrentTemperature(t *testing.T) {
+	hc := createMockForecastResponse([]struct {
+		Name        string
+		StartTime   string
+		IsDaytime   bool
+		Temperature int
+		Unit        string
+		WindSpeed   string
+		WindDir     string
+		Icon        string
+		ShortFcst   string
+		PrecipValue int
+	}{
+		{Name: "Now", StartTime: "2024-01-15T15:00:00Z", IsDaytime: true, Temperature: 70, Unit: "F", WindSpeed: "10 mph", WindDir: "E", Icon: "https://api.weather.gov/icons/land/day/cloudy", ShortFcst: "Cloudy", PrecipValue: 20},
+	})
+	fc := createMockForecastResponse([]struct {
+		Name        string
+		StartTime   string
+		IsDaytime   bool
+		Temperature int
+		Unit        string
+		WindSpeed   string
+		WindDir     string
+		Icon        string
+		ShortFcst   string
+		PrecipValue int
+	}{
+		{Name: "Today", IsDaytime: true, Temperature: 75, Unit: "F", WindSpeed: "10 mph", WindDir: "N", Icon: "https://api.weather.gov/icons/land/day/sunny", ShortFcst: "Sunny", PrecipValue: 10},
+	})
+	al := createMockAlertsResponse()
+	tempValue := 25.0 // 25°C = 77°F
+	obs := createMockObservation(&tempValue, "wmoUnit:degC", "Mostly Sunny")
+
+	wd, err := transform(fc, hc, al, &obs)
+	if err != nil {
+		t.Fatalf("transform failed: %v", err)
+	}
+
+	// Temperature and unit should be from observation
+	if wd.Current.Temperature != 77 {
+		t.Errorf("Expected Current.Temperature to be 77 (from observation 25°C), got %d", wd.Current.Temperature)
+	}
+	if wd.Current.TemperatureUnit != "F" {
+		t.Errorf("Expected Current.TemperatureUnit to be F, got %s", wd.Current.TemperatureUnit)
+	}
+
+	// Other fields should still come from hc
+	if wd.Current.ShortForecast != "Cloudy" {
+		t.Errorf("Expected Current.ShortForecast to remain 'Cloudy' from hc, got %s", wd.Current.ShortForecast)
+	}
+	if wd.Current.WindSpeed != "10 mph" {
+		t.Errorf("Expected Current.WindSpeed to remain '10 mph' from hc, got %s", wd.Current.WindSpeed)
+	}
+}
+
+// TestTransform_ObservationSetsHighLowWhenNoForecasts tests observation sets high/low when no forecast data
+func TestTransform_ObservationSetsHighLowWhenNoForecasts(t *testing.T) {
+	al := createMockAlertsResponse()
+	tempValue := 22.0 // 22°C = ~72°F
+	obs := createMockObservation(&tempValue, "wmoUnit:degC", "Fair")
+
+	wd, err := transform(nil, nil, al, &obs)
+	if err != nil {
+		t.Fatalf("transform failed: %v", err)
+	}
+
+	// When both hc and fc are nil, observation should set high/low to avoid misleading 0° values
+	if wd.Current.HighTemp != 72 {
+		t.Errorf("Expected Current.HighTemp to be 72 from observation, got %d", wd.Current.HighTemp)
+	}
+	if wd.Current.LowTemp != 72 {
+		t.Errorf("Expected Current.LowTemp to be 72 from observation, got %d", wd.Current.LowTemp)
+	}
+}
