@@ -145,11 +145,14 @@ func (c *Client) GetAlerts(lat, lon float64) (*AlertsResponse, error) {
 	return &al, nil
 }
 
+// StationFeature represents a single station feature in the GeoJSON FeatureCollection
+type StationFeature struct {
+	ID string `json:"id"`
+}
+
 // ObservationStationsResponse represents the /points/.../stations response as GeoJSON FeatureCollection
 type ObservationStationsResponse struct {
-	Features []struct {
-		ID string `json:"id"`
-	} `json:"features"`
+	Features []StationFeature `json:"features"`
 }
 
 // ObservationResponse represents the /stations/.../observations/latest response
