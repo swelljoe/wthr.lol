@@ -23,6 +23,29 @@ func (m *mockRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) 
 	return resp, nil
 }
 
+// createMockObservation is a helper function to create ObservationResponse instances
+// for testing, reducing code duplication.
+func createMockObservation(tempValue *float64, unitCode, description string) ObservationResponse {
+	return ObservationResponse{
+		Properties: struct {
+			Temperature struct {
+				Value    *float64 `json:"value"`
+				UnitCode string   `json:"unitCode"`
+			} `json:"temperature"`
+			TextDescription string `json:"textDescription"`
+		}{
+			Temperature: struct {
+				Value    *float64 `json:"value"`
+				UnitCode string   `json:"unitCode"`
+			}{
+				Value:    tempValue,
+				UnitCode: unitCode,
+			},
+			TextDescription: description,
+		},
+	}
+}
+
 // TestReverseGeocode_CityWithState tests successful reverse geocoding with city and state
 func TestReverseGeocode_CityWithState(t *testing.T) {
 	mockResponse := ReverseResponse{
@@ -453,24 +476,7 @@ func TestGetObservationStations_InvalidJSON(t *testing.T) {
 // TestGetLatestObservation_Success tests successful retrieval of latest observation
 func TestGetLatestObservation_Success(t *testing.T) {
 	tempValue := 20.5
-	mockResponse := ObservationResponse{
-		Properties: struct {
-			Temperature struct {
-				Value    *float64 `json:"value"`
-				UnitCode string   `json:"unitCode"`
-			} `json:"temperature"`
-			TextDescription string `json:"textDescription"`
-		}{
-			Temperature: struct {
-				Value    *float64 `json:"value"`
-				UnitCode string   `json:"unitCode"`
-			}{
-				Value:    &tempValue,
-				UnitCode: "wmoUnit:degC",
-			},
-			TextDescription: "Partly Cloudy",
-		},
-	}
+	mockResponse := createMockObservation(&tempValue, "wmoUnit:degC", "Partly Cloudy")
 
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Verify the URL includes /observations/latest
@@ -513,24 +519,7 @@ func TestGetLatestObservation_Success(t *testing.T) {
 
 // TestGetLatestObservation_NullTemperature tests handling of null temperature value
 func TestGetLatestObservation_NullTemperature(t *testing.T) {
-	mockResponse := ObservationResponse{
-		Properties: struct {
-			Temperature struct {
-				Value    *float64 `json:"value"`
-				UnitCode string   `json:"unitCode"`
-			} `json:"temperature"`
-			TextDescription string `json:"textDescription"`
-		}{
-			Temperature: struct {
-				Value    *float64 `json:"value"`
-				UnitCode string   `json:"unitCode"`
-			}{
-				Value:    nil,
-				UnitCode: "wmoUnit:degC",
-			},
-			TextDescription: "Clear",
-		},
-	}
+	mockResponse := createMockObservation(nil, "wmoUnit:degC", "Clear")
 
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/geo+json")
@@ -561,24 +550,7 @@ func TestGetLatestObservation_NullTemperature(t *testing.T) {
 // TestGetLatestObservation_URLTrimming tests that trailing slashes are properly handled
 func TestGetLatestObservation_URLTrimming(t *testing.T) {
 	tempValue := 15.0
-	mockResponse := ObservationResponse{
-		Properties: struct {
-			Temperature struct {
-				Value    *float64 `json:"value"`
-				UnitCode string   `json:"unitCode"`
-			} `json:"temperature"`
-			TextDescription string `json:"textDescription"`
-		}{
-			Temperature: struct {
-				Value    *float64 `json:"value"`
-				UnitCode string   `json:"unitCode"`
-			}{
-				Value:    &tempValue,
-				UnitCode: "wmoUnit:degC",
-			},
-			TextDescription: "Sunny",
-		},
-	}
+	mockResponse := createMockObservation(&tempValue, "wmoUnit:degC", "Sunny")
 
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Verify that the URL doesn't have double slashes before /observations
