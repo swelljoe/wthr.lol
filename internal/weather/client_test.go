@@ -372,10 +372,12 @@ func TestReverseGeocode_CityPriorityOverTown(t *testing.T) {
 // TestGetObservationStations_Success tests successful retrieval of observation stations
 func TestGetObservationStations_Success(t *testing.T) {
 	mockResponse := ObservationStationsResponse{
-		ObservationStations: []string{
-			"https://api.weather.gov/stations/KSFO",
-			"https://api.weather.gov/stations/KOAK",
-			"https://api.weather.gov/stations/KHWD",
+		Features: []struct {
+			ID string `json:"id"`
+		}{
+			{ID: "https://api.weather.gov/stations/KSFO"},
+			{ID: "https://api.weather.gov/stations/KOAK"},
+			{ID: "https://api.weather.gov/stations/KHWD"},
 		},
 	}
 
@@ -409,7 +411,9 @@ func TestGetObservationStations_Success(t *testing.T) {
 // TestGetObservationStations_EmptyList tests handling of empty station list
 func TestGetObservationStations_EmptyList(t *testing.T) {
 	mockResponse := ObservationStationsResponse{
-		ObservationStations: []string{},
+		Features: []struct {
+			ID string `json:"id"`
+		}{},
 	}
 
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
