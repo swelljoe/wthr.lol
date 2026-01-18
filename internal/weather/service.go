@@ -298,7 +298,14 @@ func observationTemperature(obs *ObservationResponse) (int, string, bool) {
 	case strings.HasSuffix(unitCode, "degF"):
 		return int(math.Round(*temp)), "F", true
 	default:
-		return int(math.Round(*temp)), unitCode, true
+		// Fallback: extract suffix from compound unit codes like "wmoUnit:degC"
+		displayUnit := unitCode
+		if idx := strings.LastIndex(unitCode, ":"); idx != -1 && idx+1 < len(unitCode) {
+			displayUnit = unitCode[idx+1:]
+		} else {
+			log.Printf("weather: unrecognized temperature unitCode format: %q", unitCode)
+		}
+		return int(math.Round(*temp)), displayUnit, true
 	}
 }
 
