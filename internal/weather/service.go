@@ -76,6 +76,30 @@ func (s *Service) fetchFreshWeather(lat, lon float64) (*WeatherData, error) {
 		return nil, fmt.Errorf("failed to get point metadata: %w", err)
 	}
 
+	// A.1 Get hourly forecast (best effort).
+	var hc *ForecastResponse
+	if pt.Properties.ForecastHourly != "" {
+		if hourly, err := s.client.GetForecast(pt.Properties.ForecastHourly); err != nil {
+			log.Printf("Failed to get hourly forecast: %v", err)
+		} else {
+			hc = hourly
+		}
+	}
+
+	// A.2 Get latest observation for current temperature (best effort).
+	var obs *ObservationResponse
+	if pt.Properties.ObservationStations != "" {
+		if stations, err := s.client.GetObservationStations(pt.Properties.ObservationStations); err != nil {
+			log.Printf("Failed to get observation stations: %v", err)
+		} else if len(stations) > 0 {
+			if latest, err := s.client.GetLatestObservation(stations[0]); err != nil {
+				log.Printf("Failed to get latest observation: %v", err)
+			} else {
+				obs = latest
+			}
+		}
+	}
+
 	// B. Get Forecast
 	fc, err := s.client.GetForecast(pt.Properties.Forecast)
 	if err != nil {
@@ -93,7 +117,7 @@ func (s *Service) fetchFreshWeather(lat, lon float64) (*WeatherData, error) {
 	}
 
 	// D. Transform to internal structure
-	wd, err := transform(fc, al)
+	wd, err := transform(fc, hc, al, obs)
 	if err != nil {
 		return nil, err
 	}
@@ -109,18 +133,33 @@ func (s *Service) fetchFreshWeather(lat, lon float64) (*WeatherData, error) {
 	return wd, nil
 }
 
-func transform(fc *ForecastResponse, al *AlertsResponse) (*WeatherData, error) {
+func transform(fc *ForecastResponse, hc *ForecastResponse, al *AlertsResponse, obs *ObservationResponse) (*WeatherData, error) {
 	wd := &WeatherData{
 		CachedAt:  time.Now(),
 		ExpiresAt: time.Now().Add(1 * time.Hour),
 		Forecast:  make([]DailyForecast, 0),
+		Hourly:    make([]HourlyForecast, 0),
 		Alerts:    make([]Alert, 0),
 	}
 
-	periods := fc.Properties.Periods
-	if len(periods) > 0 {
-		// Current Weather (Use first period)
-		curr := periods[0]
+	if hc != nil {
+		for i, p := range hc.Properties.Periods {
+			if i >= 5 {
+				break
+			}
+			wd.Hourly = append(wd.Hourly, HourlyForecast{
+				Name:            formatHourlyLabel(p.StartTime, p.Name),
+				Temperature:     p.Temperature,
+				TemperatureUnit: p.TemperatureUnit,
+				ShortForecast:   p.ShortForecast,
+				Icon:            mapIcon(p.Icon, p.IsDaytime),
+				PrecipChance:    p.ProbabilityOfPrecipitation.Value,
+			})
+		}
+	}
+
+	if hc != nil && len(hc.Properties.Periods) > 0 {
+		curr := hc.Properties.Periods[0]
 		wd.Current = CurrentCondition{
 			Temperature:     curr.Temperature,
 			TemperatureUnit: curr.TemperatureUnit,
@@ -130,68 +169,89 @@ func transform(fc *ForecastResponse, al *AlertsResponse) (*WeatherData, error) {
 			WindDirection:   curr.WindDirection,
 			Icon:            mapIcon(curr.Icon, curr.IsDaytime),
 		}
-
-		// Calculate High/Low for "Today" (Current Day)
-		high := curr.Temperature
-		low := curr.Temperature
-		if len(periods) > 1 {
-			next := periods[1]
-			if next.Temperature > high {
-				high = next.Temperature
-			}
-			if next.Temperature < low {
-				low = next.Temperature
-			}
+	} else if fc != nil && len(fc.Properties.Periods) > 0 {
+		curr := fc.Properties.Periods[0]
+		wd.Current = CurrentCondition{
+			Temperature:     curr.Temperature,
+			TemperatureUnit: curr.TemperatureUnit,
+			ShortForecast:   curr.ShortForecast,
+			Precipitation:   curr.ProbabilityOfPrecipitation.Value,
+			WindSpeed:       curr.WindSpeed,
+			WindDirection:   curr.WindDirection,
+			Icon:            mapIcon(curr.Icon, curr.IsDaytime),
 		}
-		wd.Current.HighTemp = high
-		wd.Current.LowTemp = low
+	}
 
-		// Process Forecast
-		processedDays := 0
-		i := 0
-		for i < len(periods) {
-			p := periods[i]
-
-			// Create a new day entry
-			day := DailyForecast{
-				Name:            p.Name,
-				TemperatureUnit: p.TemperatureUnit,
-				Icon:            mapIcon(p.Icon, p.IsDaytime),
-				ShortForecast:   p.ShortForecast,
-				PrecipChance:    p.ProbabilityOfPrecipitation.Value,
-				HighTemp:        p.Temperature,
-				LowTemp:         p.Temperature,
-			}
-
-			// Is this a "Day" part or "Night" part?
-			if p.IsDaytime {
-				day.HighTemp = p.Temperature
-				// Look ahead for night
-				if i+1 < len(periods) {
-					next := periods[i+1]
-					if !next.IsDaytime {
-						day.LowTemp = next.Temperature
-						// maximize precip chance?
-						if next.ProbabilityOfPrecipitation.Value > day.PrecipChance {
-							day.PrecipChance = next.ProbabilityOfPrecipitation.Value
-						}
-						i++ // Consume next period
-					}
+	if fc != nil {
+		periods := fc.Properties.Periods
+		if len(periods) > 0 {
+			// Calculate High/Low for "Today" (Current Day)
+			high := periods[0].Temperature
+			low := periods[0].Temperature
+			if len(periods) > 1 {
+				next := periods[1]
+				if next.Temperature > high {
+					high = next.Temperature
 				}
-			} else {
-				// Standalone Night
-				day.LowTemp = p.Temperature
-				day.HighTemp = p.Temperature
+				if next.Temperature < low {
+					low = next.Temperature
+				}
 			}
+			wd.Current.HighTemp = high
+			wd.Current.LowTemp = low
 
-			wd.Forecast = append(wd.Forecast, day)
-			processedDays++
-			i++
+			// Process Forecast
+			processedDays := 0
+			i := 0
+			for i < len(periods) {
+				p := periods[i]
 
-			if processedDays >= 5 {
-				break
+				// Create a new day entry
+				day := DailyForecast{
+					Name:            p.Name,
+					TemperatureUnit: p.TemperatureUnit,
+					Icon:            mapIcon(p.Icon, p.IsDaytime),
+					ShortForecast:   p.ShortForecast,
+					PrecipChance:    p.ProbabilityOfPrecipitation.Value,
+					HighTemp:        p.Temperature,
+					LowTemp:         p.Temperature,
+				}
+
+				// Is this a "Day" part or "Night" part?
+				if p.IsDaytime {
+					day.HighTemp = p.Temperature
+					// Look ahead for night
+					if i+1 < len(periods) {
+						next := periods[i+1]
+						if !next.IsDaytime {
+							day.LowTemp = next.Temperature
+							// maximize precip chance?
+							if next.ProbabilityOfPrecipitation.Value > day.PrecipChance {
+								day.PrecipChance = next.ProbabilityOfPrecipitation.Value
+							}
+							i++ // Consume next period
+						}
+					}
+				} else {
+					// Standalone Night
+					day.LowTemp = p.Temperature
+					day.HighTemp = p.Temperature
+				}
+
+				wd.Forecast = append(wd.Forecast, day)
+				processedDays++
+				i++
+
+				if processedDays >= 5 {
+					break
+				}
 			}
 		}
+	}
+
+	if temp, unit, ok := observationTemperature(obs); ok {
+		wd.Current.Temperature = temp
+		wd.Current.TemperatureUnit = unit
 	}
 
 	// Alerts
@@ -206,6 +266,40 @@ func transform(fc *ForecastResponse, al *AlertsResponse) (*WeatherData, error) {
 	}
 
 	return wd, nil
+}
+
+func formatHourlyLabel(startTime, fallback string) string {
+	if startTime == "" {
+		return fallback
+	}
+
+	t, err := time.Parse(time.RFC3339, startTime)
+	if err != nil {
+		return fallback
+	}
+
+	return t.Format("3 PM")
+}
+
+func observationTemperature(obs *ObservationResponse) (int, string, bool) {
+	if obs == nil {
+		return 0, "", false
+	}
+	temp := obs.Properties.Temperature.Value
+	if temp == nil || math.IsNaN(*temp) {
+		return 0, "", false
+	}
+
+	unitCode := obs.Properties.Temperature.UnitCode
+	switch {
+	case strings.HasSuffix(unitCode, "degC"):
+		f := (*temp * 9.0 / 5.0) + 32.0
+		return int(math.Round(f)), "F", true
+	case strings.HasSuffix(unitCode, "degF"):
+		return int(math.Round(*temp)), "F", true
+	default:
+		return int(math.Round(*temp)), unitCode, true
+	}
 }
 
 // mapIcon maps NWS icon URL or forecast description to Material Symbol name

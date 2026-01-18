@@ -6,6 +6,7 @@ import "time"
 type WeatherData struct {
 	Current   CurrentCondition `json:"current"`
 	Forecast  []DailyForecast  `json:"forecast"`
+	Hourly    []HourlyForecast `json:"hourly"`
 	Alerts    []Alert          `json:"alerts"`
 	CachedAt  time.Time        `json:"cached_at"`
 	ExpiresAt time.Time        `json:"expires_at"`
@@ -28,6 +29,16 @@ type DailyForecast struct {
 	Name            string `json:"name"` // e.g., "Monday"
 	HighTemp        int    `json:"high_temp"`
 	LowTemp         int    `json:"low_temp"`
+	TemperatureUnit string `json:"temperature_unit"`
+	ShortForecast   string `json:"short_forecast"`
+	Icon            string `json:"icon"`
+	PrecipChance    int    `json:"precip_chance"`
+}
+
+// HourlyForecast represents a short hourly forecast window.
+type HourlyForecast struct {
+	Name            string `json:"name"`
+	Temperature     int    `json:"temperature"`
 	TemperatureUnit string `json:"temperature_unit"`
 	ShortForecast   string `json:"short_forecast"`
 	Icon            string `json:"icon"`
