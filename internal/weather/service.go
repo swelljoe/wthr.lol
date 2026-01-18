@@ -252,6 +252,15 @@ func transform(fc *ForecastResponse, hc *ForecastResponse, al *AlertsResponse, o
 	if temp, unit, ok := observationTemperature(obs); ok {
 		wd.Current.Temperature = temp
 		wd.Current.TemperatureUnit = unit
+
+		// If no hourly or daily forecast data is available, use the observation
+		// temperature as a fallback for high and low to avoid misleading 0° values.
+		noHourly := hc == nil || len(hc.Properties.Periods) == 0
+		noDaily := fc == nil || len(fc.Properties.Periods) == 0
+		if noHourly && noDaily {
+			wd.Current.HighTemp = temp
+			wd.Current.LowTemp = temp
+		}
 	}
 
 	// Alerts
