@@ -287,7 +287,8 @@ func formatHourlyLabel(startTime, fallback string) string {
 		return fallback
 	}
 
-	return t.Format("3 PM")
+	utc := t.UTC()
+	return utc.Format("3 PM") + " UTC"
 }
 
 func observationTemperature(obs *ObservationResponse) (int, string, bool) {
