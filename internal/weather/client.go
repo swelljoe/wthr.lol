@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"strings"
 	"time"
 )
 
@@ -56,11 +57,13 @@ func (c *Client) get(url string) ([]byte, error) {
 // PointResponse represents the NWS /points/ response
 type PointResponse struct {
 	Properties struct {
-		GridId   string `json:"gridId"`
-		GridX    int    `json:"gridX"`
-		GridY    int    `json:"gridY"`
-		Forecast string `json:"forecast"`
-		County   string `json:"county"` // URL to county
+		GridId               string `json:"gridId"`
+		GridX                int    `json:"gridX"`
+		GridY                int    `json:"gridY"`
+		Forecast             string `json:"forecast"`
+		ForecastHourly       string `json:"forecastHourly"`
+		ObservationStations  string `json:"observationStations"`
+		County               string `json:"county"` // URL to county
 	} `json:"properties"`
 }
 
@@ -140,6 +143,61 @@ func (c *Client) GetAlerts(lat, lon float64) (*AlertsResponse, error) {
 		return nil, err
 	}
 	return &al, nil
+}
+
+// ObservationStationsResponse represents the /points/.../stations response as GeoJSON FeatureCollection
+type ObservationStationsResponse struct {
+	Features []struct {
+		ID string `json:"id"`
+	} `json:"features"`
+}
+
+// ObservationResponse represents the /stations/.../observations/latest response
+type ObservationResponse struct {
+	Properties struct {
+		Temperature struct {
+			Value    *float64 `json:"value"`
+			UnitCode string   `json:"unitCode"`
+		} `json:"temperature"`
+		TextDescription string `json:"textDescription"`
+	} `json:"properties"`
+}
+
+// GetObservationStations fetches observation station URLs for a point
+func (c *Client) GetObservationStations(stationsURL string) ([]string, error) {
+	data, err := c.get(stationsURL)
+	if err != nil {
+		return nil, err
+	}
+
+	var resp ObservationStationsResponse
+	if err := json.Unmarshal(data, &resp); err != nil {
+		return nil, err
+	}
+	
+	// Extract station IDs from features
+	stations := make([]string, 0, len(resp.Features))
+	for _, feature := range resp.Features {
+		if feature.ID != "" {
+			stations = append(stations, feature.ID)
+		}
+	}
+	return stations, nil
+}
+
+// GetLatestObservation fetches the latest observation for a station URL
+func (c *Client) GetLatestObservation(stationURL string) (*ObservationResponse, error) {
+	obsURL := strings.TrimRight(stationURL, "/") + "/observations/latest"
+	data, err := c.get(obsURL)
+	if err != nil {
+		return nil, err
+	}
+
+	var obs ObservationResponse
+	if err := json.Unmarshal(data, &obs); err != nil {
+		return nil, err
+	}
+	return &obs, nil
 }
 
 // GeocodeResponse represents Nominatim response

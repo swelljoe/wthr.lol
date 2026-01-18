@@ -182,7 +182,42 @@ button.secondary:hover {
     font-weight: 600;
 }
 
-/* Forecast Loop */
+/* Hourly Forecast */
+.hourly-section {
+    margin-top: 2.5rem;
+}
+
+.hourly-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(90px, 1fr));
+    gap: 0.75rem;
+    margin-top: 1.25rem;
+}
+
+.hourly-card {
+    background: rgba(255, 255, 255, 0.03);
+    border-radius: 0.75rem;
+    padding: 0.75rem;
+    text-align: center;
+}
+
+.hourly-time {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+}
+
+.hourly-temp {
+    font-size: 1.1rem;
+    font-weight: 700;
+}
+
+.hourly-precip {
+    font-size: 0.7rem;
+    color: var(--text-secondary);
+}
+
 .forecast-section {
     margin-top: 3rem;
 }

@@ -47,6 +47,23 @@
         {{end}}
     </div>
     {{end}}
+    {{if .Hourly}}
+    <div class="hourly-section">
+        <h3>Hourly</h3>
+        <div class="hourly-grid">
+            {{range .Hourly}}
+            <div class="hourly-card">
+                <div class="hourly-time">{{.Name}}</div>
+                <span class="material-symbols-rounded weather-icon-small"
+                    >{{.Icon}}</span
+                >
+                <div class="hourly-temp">{{.Temperature}}°</div>
+                <div class="hourly-precip">💧 {{.PrecipChance}}%</div>
+            </div>
+            {{end}}
+        </div>
+    </div>
+    {{end}}
 
     <div class="forecast-section">
         <h3>5-Day Forecast</h3>
