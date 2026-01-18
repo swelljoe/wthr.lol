@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 )
 
@@ -20,6 +21,29 @@ func (m *mockRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) 
 	m.handler.ServeHTTP(rec, req)
 	resp := rec.Result()
 	return resp, nil
+}
+
+// createMockObservation is a helper function to create ObservationResponse instances
+// for testing, reducing code duplication.
+func createMockObservation(tempValue *float64, unitCode, description string) ObservationResponse {
+	return ObservationResponse{
+		Properties: struct {
+			Temperature struct {
+				Value    *float64 `json:"value"`
+				UnitCode string   `json:"unitCode"`
+			} `json:"temperature"`
+			TextDescription string `json:"textDescription"`
+		}{
+			Temperature: struct {
+				Value    *float64 `json:"value"`
+				UnitCode string   `json:"unitCode"`
+			}{
+				Value:    tempValue,
+				UnitCode: unitCode,
+			},
+			TextDescription: description,
+		},
+	}
 }
 
 // TestReverseGeocode_CityWithState tests successful reverse geocoding with city and state
@@ -342,5 +366,259 @@ func TestReverseGeocode_CityPriorityOverTown(t *testing.T) {
 	expected := "Big City, California"
 	if result != expected {
 		t.Errorf("expected %q (city should be preferred over town), got %q", expected, result)
+	}
+}
+
+// TestGetObservationStations_Success tests successful retrieval of observation stations
+func TestGetObservationStations_Success(t *testing.T) {
+	mockResponse := ObservationStationsResponse{
+		ObservationStations: []string{
+			"https://api.weather.gov/stations/KSFO",
+			"https://api.weather.gov/stations/KOAK",
+			"https://api.weather.gov/stations/KHWD",
+		},
+	}
+
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/geo+json")
+		json.NewEncoder(w).Encode(mockResponse)
+	})
+
+	client := &Client{
+		UserAgent: "test-agent",
+		HTTPClient: &http.Client{
+			Transport: &mockRoundTripper{handler: handler},
+		},
+	}
+
+	stations, err := client.GetObservationStations("https://api.weather.gov/gridpoints/MTR/85,105/stations")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if len(stations) != 3 {
+		t.Errorf("expected 3 stations, got %d", len(stations))
+	}
+
+	expectedFirst := "https://api.weather.gov/stations/KSFO"
+	if stations[0] != expectedFirst {
+		t.Errorf("expected first station %q, got %q", expectedFirst, stations[0])
+	}
+}
+
+// TestGetObservationStations_EmptyList tests handling of empty station list
+func TestGetObservationStations_EmptyList(t *testing.T) {
+	mockResponse := ObservationStationsResponse{
+		ObservationStations: []string{},
+	}
+
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/geo+json")
+		json.NewEncoder(w).Encode(mockResponse)
+	})
+
+	client := &Client{
+		UserAgent: "test-agent",
+		HTTPClient: &http.Client{
+			Transport: &mockRoundTripper{handler: handler},
+		},
+	}
+
+	stations, err := client.GetObservationStations("https://api.weather.gov/gridpoints/MTR/85,105/stations")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if len(stations) != 0 {
+		t.Errorf("expected 0 stations, got %d", len(stations))
+	}
+}
+
+// TestGetObservationStations_APIError tests error handling when API returns an error
+func TestGetObservationStations_APIError(t *testing.T) {
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+	})
+
+	client := &Client{
+		UserAgent: "test-agent",
+		HTTPClient: &http.Client{
+			Transport: &mockRoundTripper{handler: handler},
+		},
+	}
+
+	_, err := client.GetObservationStations("https://api.weather.gov/gridpoints/MTR/85,105/stations")
+	if err == nil {
+		t.Fatal("expected error for API error, got nil")
+	}
+}
+
+// TestGetObservationStations_InvalidJSON tests error handling for invalid JSON response
+func TestGetObservationStations_InvalidJSON(t *testing.T) {
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/geo+json")
+		w.Write([]byte("invalid json {"))
+	})
+
+	client := &Client{
+		UserAgent: "test-agent",
+		HTTPClient: &http.Client{
+			Transport: &mockRoundTripper{handler: handler},
+		},
+	}
+
+	_, err := client.GetObservationStations("https://api.weather.gov/gridpoints/MTR/85,105/stations")
+	if err == nil {
+		t.Fatal("expected error for invalid JSON, got nil")
+	}
+}
+
+// TestGetLatestObservation_Success tests successful retrieval of latest observation
+func TestGetLatestObservation_Success(t *testing.T) {
+	tempValue := 20.5
+	mockResponse := createMockObservation(&tempValue, "wmoUnit:degC", "Partly Cloudy")
+
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Verify the URL includes /observations/latest
+		if !strings.Contains(r.URL.Path, "/observations/latest") {
+			t.Errorf("expected URL to contain /observations/latest, got %s", r.URL.Path)
+		}
+
+		w.Header().Set("Content-Type", "application/geo+json")
+		json.NewEncoder(w).Encode(mockResponse)
+	})
+
+	client := &Client{
+		UserAgent: "test-agent",
+		HTTPClient: &http.Client{
+			Transport: &mockRoundTripper{handler: handler},
+		},
+	}
+
+	obs, err := client.GetLatestObservation("https://api.weather.gov/stations/KSFO")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if obs.Properties.Temperature.Value == nil {
+		t.Fatal("expected temperature value, got nil")
+	}
+
+	if *obs.Properties.Temperature.Value != tempValue {
+		t.Errorf("expected temperature %v, got %v", tempValue, *obs.Properties.Temperature.Value)
+	}
+
+	if obs.Properties.Temperature.UnitCode != "wmoUnit:degC" {
+		t.Errorf("expected unit code %q, got %q", "wmoUnit:degC", obs.Properties.Temperature.UnitCode)
+	}
+
+	if obs.Properties.TextDescription != "Partly Cloudy" {
+		t.Errorf("expected description %q, got %q", "Partly Cloudy", obs.Properties.TextDescription)
+	}
+}
+
+// TestGetLatestObservation_NullTemperature tests handling of null temperature value
+func TestGetLatestObservation_NullTemperature(t *testing.T) {
+	mockResponse := createMockObservation(nil, "wmoUnit:degC", "Clear")
+
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/geo+json")
+		json.NewEncoder(w).Encode(mockResponse)
+	})
+
+	client := &Client{
+		UserAgent: "test-agent",
+		HTTPClient: &http.Client{
+			Transport: &mockRoundTripper{handler: handler},
+		},
+	}
+
+	obs, err := client.GetLatestObservation("https://api.weather.gov/stations/KSFO")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if obs.Properties.Temperature.Value != nil {
+		t.Errorf("expected nil temperature value, got %v", *obs.Properties.Temperature.Value)
+	}
+
+	if obs.Properties.TextDescription != "Clear" {
+		t.Errorf("expected description %q, got %q", "Clear", obs.Properties.TextDescription)
+	}
+}
+
+// TestGetLatestObservation_URLTrimming tests that trailing slashes are properly handled
+func TestGetLatestObservation_URLTrimming(t *testing.T) {
+	tempValue := 15.0
+	mockResponse := createMockObservation(&tempValue, "wmoUnit:degC", "Sunny")
+
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Verify that the URL doesn't have double slashes before /observations
+		if strings.Contains(r.URL.Path, "//observations") {
+			t.Error("URL should not contain double slashes")
+		}
+
+		w.Header().Set("Content-Type", "application/geo+json")
+		json.NewEncoder(w).Encode(mockResponse)
+	})
+
+	client := &Client{
+		UserAgent: "test-agent",
+		HTTPClient: &http.Client{
+			Transport: &mockRoundTripper{handler: handler},
+		},
+	}
+
+	// Test with trailing slash
+	obs, err := client.GetLatestObservation("https://api.weather.gov/stations/KSFO/")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if obs.Properties.Temperature.Value == nil {
+		t.Fatal("expected temperature value, got nil")
+	}
+
+	if *obs.Properties.Temperature.Value != tempValue {
+		t.Errorf("expected temperature %v, got %v", tempValue, *obs.Properties.Temperature.Value)
+	}
+}
+
+// TestGetLatestObservation_APIError tests error handling when API returns an error
+func TestGetLatestObservation_APIError(t *testing.T) {
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusNotFound)
+	})
+
+	client := &Client{
+		UserAgent: "test-agent",
+		HTTPClient: &http.Client{
+			Transport: &mockRoundTripper{handler: handler},
+		},
+	}
+
+	_, err := client.GetLatestObservation("https://api.weather.gov/stations/INVALID")
+	if err == nil {
+		t.Fatal("expected error for API error, got nil")
+	}
+}
+
+// TestGetLatestObservation_InvalidJSON tests error handling for invalid JSON response
+func TestGetLatestObservation_InvalidJSON(t *testing.T) {
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/geo+json")
+		w.Write([]byte("invalid json {"))
+	})
+
+	client := &Client{
+		UserAgent: "test-agent",
+		HTTPClient: &http.Client{
+			Transport: &mockRoundTripper{handler: handler},
+		},
+	}
+
+	_, err := client.GetLatestObservation("https://api.weather.gov/stations/KSFO")
+	if err == nil {
+		t.Fatal("expected error for invalid JSON, got nil")
 	}
 }
