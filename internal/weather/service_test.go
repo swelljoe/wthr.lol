@@ -130,6 +130,15 @@ func TestFormatHourlyLabel_InvalidTimezoneFallbackToUTC(t *testing.T) {
 	}
 }
 
+// TestFormatHourlyLabel_EmptyTimezoneFallbackToUTC tests that when an empty timezone
+// string is provided, the formatter falls back to using UTC.
+func TestFormatHourlyLabel_EmptyTimezoneFallbackToUTC(t *testing.T) {
+	result := formatHourlyLabel("2024-01-15T15:00:00-08:00", "Fallback", "")
+	if result != "11 PM UTC" {
+		t.Errorf("formatHourlyLabel(%q, %q, %q) = %q, want %q (fallback to UTC with empty timezone)", "2024-01-15T15:00:00-08:00", "Fallback", "", result, "11 PM UTC")
+	}
+}
+
 // TestObservationTemperature_NilObservation tests that nil observation returns false
 func TestObservationTemperature_NilObservation(t *testing.T) {
 	temp, unit, ok := observationTemperature(nil)
