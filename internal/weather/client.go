@@ -57,13 +57,14 @@ func (c *Client) get(url string) ([]byte, error) {
 // PointResponse represents the NWS /points/ response
 type PointResponse struct {
 	Properties struct {
-		GridId               string `json:"gridId"`
-		GridX                int    `json:"gridX"`
-		GridY                int    `json:"gridY"`
-		Forecast             string `json:"forecast"`
-		ForecastHourly       string `json:"forecastHourly"`
-		ObservationStations  string `json:"observationStations"`
-		County               string `json:"county"` // URL to county
+		GridId              string `json:"gridId"`
+		GridX               int    `json:"gridX"`
+		GridY               int    `json:"gridY"`
+		Forecast            string `json:"forecast"`
+		ForecastHourly      string `json:"forecastHourly"`
+		ObservationStations string `json:"observationStations"`
+		TimeZone            string `json:"timeZone"` // IANA time zone name for the point (e.g. "America/Los_Angeles")
+		County              string `json:"county"`   // URL to county
 	} `json:"properties"`
 }
 
@@ -174,7 +175,7 @@ func (c *Client) GetObservationStations(stationsURL string) ([]string, error) {
 	if err := json.Unmarshal(data, &resp); err != nil {
 		return nil, err
 	}
-	
+
 	// Extract station IDs from features
 	stations := make([]string, 0, len(resp.Features))
 	for _, feature := range resp.Features {

@@ -11,6 +11,7 @@ type WeatherData struct {
 	CachedAt  time.Time        `json:"cached_at"`
 	ExpiresAt time.Time        `json:"expires_at"`
 	Location  string           `json:"location,omitempty"`
+	TimeZone  string           `json:"time_zone,omitempty"`
 }
 
 type CurrentCondition struct {

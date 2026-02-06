@@ -117,7 +117,7 @@ func (s *Service) fetchFreshWeather(lat, lon float64) (*WeatherData, error) {
 	}
 
 	// D. Transform to internal structure
-	wd, err := transform(fc, hc, al, obs)
+	wd, err := transform(fc, hc, al, obs, pt.Properties.TimeZone)
 	if err != nil {
 		return nil, err
 	}
@@ -133,13 +133,14 @@ func (s *Service) fetchFreshWeather(lat, lon float64) (*WeatherData, error) {
 	return wd, nil
 }
 
-func transform(fc *ForecastResponse, hc *ForecastResponse, al *AlertsResponse, obs *ObservationResponse) (*WeatherData, error) {
+func transform(fc *ForecastResponse, hc *ForecastResponse, al *AlertsResponse, obs *ObservationResponse, tz string) (*WeatherData, error) {
 	wd := &WeatherData{
 		CachedAt:  time.Now(),
 		ExpiresAt: time.Now().Add(1 * time.Hour),
 		Forecast:  make([]DailyForecast, 0),
 		Hourly:    make([]HourlyForecast, 0),
 		Alerts:    make([]Alert, 0),
+		TimeZone:  tz,
 	}
 
 	if hc != nil {
@@ -148,7 +149,7 @@ func transform(fc *ForecastResponse, hc *ForecastResponse, al *AlertsResponse, o
 				break
 			}
 			wd.Hourly = append(wd.Hourly, HourlyForecast{
-				Name:            formatHourlyLabel(p.StartTime, p.Name),
+				Name:            formatHourlyLabel(p.StartTime, p.Name, tz),
 				Temperature:     p.Temperature,
 				TemperatureUnit: p.TemperatureUnit,
 				ShortForecast:   p.ShortForecast,
@@ -277,7 +278,7 @@ func transform(fc *ForecastResponse, hc *ForecastResponse, al *AlertsResponse, o
 	return wd, nil
 }
 
-func formatHourlyLabel(startTime, fallback string) string {
+func formatHourlyLabel(startTime, fallback, tz string) string {
 	if startTime == "" {
 		return fallback
 	}
@@ -287,8 +288,15 @@ func formatHourlyLabel(startTime, fallback string) string {
 		return fallback
 	}
 
-	utc := t.UTC()
-	return utc.Format("3 PM") + " UTC"
+	// If a timezone was provided, try to format in that location (use local abbreviation like PST/PDT)
+	if tz != "" {
+		if loc, err := time.LoadLocation(tz); err == nil {
+			return t.In(loc).Format("3 PM MST")
+		}
+	}
+
+	// Fallback to UTC if no valid timezone is provided
+	return t.In(time.UTC).Format("3 PM MST")
 }
 
 func observationTemperature(obs *ObservationResponse) (int, string, bool) {

@@ -11,45 +11,58 @@ func TestFormatHourlyLabel_ValidTime(t *testing.T) {
 		name      string
 		startTime string
 		fallback  string
+		tz        string
 		expected  string
 	}{
 		{
-			name:      "afternoon time",
+			name:      "afternoon time (America/Los_Angeles)",
 			startTime: "2024-01-15T15:00:00-08:00",
 			fallback:  "Fallback",
-			expected:  "11 PM UTC",
+			tz:        "America/Los_Angeles",
+			expected:  "3 PM PST",
 		},
 		{
-			name:      "morning time",
+			name:      "morning time (UTC)",
 			startTime: "2024-01-15T09:30:00Z",
 			fallback:  "Fallback",
+			tz:        "UTC",
 			expected:  "9 AM UTC",
 		},
 		{
 			name:      "midnight UTC",
 			startTime: "2024-01-15T00:00:00Z",
 			fallback:  "Fallback",
+			tz:        "UTC",
 			expected:  "12 AM UTC",
 		},
 		{
 			name:      "noon UTC",
 			startTime: "2024-01-15T12:00:00Z",
 			fallback:  "Fallback",
+			tz:        "UTC",
 			expected:  "12 PM UTC",
 		},
 		{
-			name:      "with timezone offset",
+			name:      "with timezone offset (UTC target)",
 			startTime: "2024-01-15T14:00:00-05:00",
 			fallback:  "Fallback",
+			tz:        "UTC",
 			expected:  "7 PM UTC",
+		},
+		{
+			name:      "convert to America/Los_Angeles",
+			startTime: "2024-01-15T15:00:00Z",
+			fallback:  "Fallback",
+			tz:        "America/Los_Angeles",
+			expected:  "7 AM PST",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := formatHourlyLabel(tt.startTime, tt.fallback)
+			result := formatHourlyLabel(tt.startTime, tt.fallback, tt.tz)
 			if result != tt.expected {
-				t.Errorf("formatHourlyLabel(%q, %q) = %q, want %q", tt.startTime, tt.fallback, result, tt.expected)
+				t.Errorf("formatHourlyLabel(%q, %q, %q) = %q, want %q", tt.startTime, tt.fallback, tt.tz, result, tt.expected)
 			}
 		})
 	}
@@ -58,9 +71,9 @@ func TestFormatHourlyLabel_ValidTime(t *testing.T) {
 // TestFormatHourlyLabel_EmptyString tests that empty string returns fallback
 func TestFormatHourlyLabel_EmptyString(t *testing.T) {
 	fallback := "Original Label"
-	result := formatHourlyLabel("", fallback)
+	result := formatHourlyLabel("", fallback, "America/Los_Angeles")
 	if result != fallback {
-		t.Errorf("formatHourlyLabel(\"\", %q) = %q, want %q", fallback, result, fallback)
+		t.Errorf("formatHourlyLabel(\"\", %q, %q) = %q, want %q", fallback, "America/Los_Angeles", result, fallback)
 	}
 }
 
@@ -70,36 +83,59 @@ func TestFormatHourlyLabel_InvalidFormat(t *testing.T) {
 		name      string
 		startTime string
 		fallback  string
+		tz        string
 	}{
 		{
 			name:      "invalid format",
 			startTime: "not-a-date",
 			fallback:  "Fallback Label",
+			tz:        "UTC",
 		},
 		{
 			name:      "wrong date format",
 			startTime: "2024/01/15 15:00:00",
 			fallback:  "Default",
+			tz:        "UTC",
 		},
 		{
 			name:      "partial timestamp",
 			startTime: "2024-01-15",
 			fallback:  "Fallback",
+			tz:        "UTC",
 		},
 		{
 			name:      "malformed RFC3339",
 			startTime: "2024-01-15T15:00:00",
 			fallback:  "Expected Label",
+			tz:        "UTC",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := formatHourlyLabel(tt.startTime, tt.fallback)
+			result := formatHourlyLabel(tt.startTime, tt.fallback, tt.tz)
 			if result != tt.fallback {
-				t.Errorf("formatHourlyLabel(%q, %q) = %q, want %q (fallback)", tt.startTime, tt.fallback, result, tt.fallback)
+				t.Errorf("formatHourlyLabel(%q, %q, %q) = %q, want %q (fallback)", tt.startTime, tt.fallback, tt.tz, result, tt.fallback)
 			}
 		})
+	}
+}
+
+// TestFormatHourlyLabel_InvalidTimezoneFallbackToUTC tests that when an invalid timezone
+// name is supplied, the formatter falls back to using UTC.
+func TestFormatHourlyLabel_InvalidTimezoneFallbackToUTC(t *testing.T) {
+	result := formatHourlyLabel("2024-01-15T15:00:00-08:00", "Fallback", "Invalid/Timezone")
+	if result != "11 PM UTC" {
+		t.Errorf("formatHourlyLabel(%q, %q, %q) = %q, want %q (fallback to UTC)", "2024-01-15T15:00:00-08:00", "Fallback", "Invalid/Timezone", result, "11 PM UTC")
+	}
+}
+
+// TestFormatHourlyLabel_EmptyTimezoneFallbackToUTC tests that when an empty timezone
+// string is provided, the formatter falls back to using UTC.
+func TestFormatHourlyLabel_EmptyTimezoneFallbackToUTC(t *testing.T) {
+	result := formatHourlyLabel("2024-01-15T15:00:00-08:00", "Fallback", "")
+	if result != "11 PM UTC" {
+		t.Errorf("formatHourlyLabel(%q, %q, %q) = %q, want %q (fallback to UTC with empty timezone)", "2024-01-15T15:00:00-08:00", "Fallback", "", result, "11 PM UTC")
 	}
 }
 
@@ -454,7 +490,7 @@ func TestTransform_HourlyNil(t *testing.T) {
 	tempValue := 72.0
 	obs := createMockObservation(&tempValue, "wmoUnit:degC", "Clear")
 
-	wd, err := transform(fc, nil, al, &obs)
+	wd, err := transform(fc, nil, al, &obs, "UTC")
 	if err != nil {
 		t.Fatalf("transform failed: %v", err)
 	}
@@ -506,7 +542,7 @@ func TestTransform_ObservationNil(t *testing.T) {
 	})
 	al := createMockAlertsResponse()
 
-	wd, err := transform(fc, hc, al, nil)
+	wd, err := transform(fc, hc, al, nil, "UTC")
 	if err != nil {
 		t.Fatalf("transform failed: %v", err)
 	}
@@ -561,7 +597,7 @@ func TestTransform_BothHourlyAndObservationPresent(t *testing.T) {
 	tempValue := 20.0 // 20°C = 68°F
 	obs := createMockObservation(&tempValue, "wmoUnit:degC", "Clear")
 
-	wd, err := transform(fc, hc, al, &obs)
+	wd, err := transform(fc, hc, al, &obs, "UTC")
 	if err != nil {
 		t.Fatalf("transform failed: %v", err)
 	}
@@ -614,7 +650,7 @@ func TestTransform_CurrentFromHourly(t *testing.T) {
 	})
 	al := createMockAlertsResponse()
 
-	wd, err := transform(nil, hc, al, nil)
+	wd, err := transform(nil, hc, al, nil, "UTC")
 	if err != nil {
 		t.Fatalf("transform failed: %v", err)
 	}
@@ -658,7 +694,7 @@ func TestTransform_CurrentFallbackToForecast(t *testing.T) {
 	})
 	al := createMockAlertsResponse()
 
-	wd, err := transform(fc, nil, al, nil)
+	wd, err := transform(fc, nil, al, nil, "UTC")
 	if err != nil {
 		t.Fatalf("transform failed: %v", err)
 	}
@@ -702,7 +738,7 @@ func TestTransform_HourlyLimitsFiveItems(t *testing.T) {
 	})
 	al := createMockAlertsResponse()
 
-	wd, err := transform(nil, hc, al, nil)
+	wd, err := transform(nil, hc, al, nil, "UTC")
 	if err != nil {
 		t.Fatalf("transform failed: %v", err)
 	}
@@ -752,7 +788,7 @@ func TestTransform_ObservationOverridesCurrentTemperature(t *testing.T) {
 	tempValue := 25.0 // 25°C = 77°F
 	obs := createMockObservation(&tempValue, "wmoUnit:degC", "Mostly Sunny")
 
-	wd, err := transform(fc, hc, al, &obs)
+	wd, err := transform(fc, hc, al, &obs, "UTC")
 	if err != nil {
 		t.Fatalf("transform failed: %v", err)
 	}
@@ -780,7 +816,7 @@ func TestTransform_ObservationSetsHighLowWhenNoForecasts(t *testing.T) {
 	tempValue := 22.0 // 22°C = ~72°F
 	obs := createMockObservation(&tempValue, "wmoUnit:degC", "Fair")
 
-	wd, err := transform(nil, nil, al, &obs)
+	wd, err := transform(nil, nil, al, &obs, "UTC")
 	if err != nil {
 		t.Fatalf("transform failed: %v", err)
 	}
@@ -791,5 +827,42 @@ func TestTransform_ObservationSetsHighLowWhenNoForecasts(t *testing.T) {
 	}
 	if wd.Current.LowTemp != 72 {
 		t.Errorf("Expected Current.LowTemp to be 72 from observation, got %d", wd.Current.LowTemp)
+	}
+}
+
+// TestTransform_TimezonePropagation verifies that a timezone passed into transform
+// is propagated to the resulting WeatherData and used when formatting hourly labels.
+func TestTransform_TimezonePropagation(t *testing.T) {
+	hc := createMockForecastResponse([]struct {
+		Name        string
+		StartTime   string
+		IsDaytime   bool
+		Temperature int
+		Unit        string
+		WindSpeed   string
+		WindDir     string
+		Icon        string
+		ShortFcst   string
+		PrecipValue int
+	}{
+		{Name: "Now", StartTime: "2024-01-15T15:00:00Z", IsDaytime: true, Temperature: 68, Unit: "F", WindSpeed: "5 mph", WindDir: "NE", Icon: "https://api.weather.gov/icons/land/day/cloudy", ShortFcst: "Cloudy", PrecipValue: 20},
+	})
+	al := createMockAlertsResponse()
+
+	wd, err := transform(nil, hc, al, nil, "America/Los_Angeles")
+	if err != nil {
+		t.Fatalf("transform failed: %v", err)
+	}
+
+	if wd.TimeZone != "America/Los_Angeles" {
+		t.Errorf("Expected TimeZone to be %q, got %q", "America/Los_Angeles", wd.TimeZone)
+	}
+
+	// 15:00 UTC on 2024-01-15 corresponds to 7 AM PST
+	if len(wd.Hourly) == 0 {
+		t.Fatalf("Expected Hourly to have items, got none")
+	}
+	if wd.Hourly[0].Name != "7 AM PST" {
+		t.Errorf("Expected Hourly[0].Name to be '7 AM PST', got %s", wd.Hourly[0].Name)
 	}
 }
