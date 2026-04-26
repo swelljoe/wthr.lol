@@ -2,6 +2,8 @@
 
 # wthr.lol
 
+[Try it at wthr.lol!](https://wthr.lol)
+
 Because I'm tired of ad-filled weather sites and apps
 
 A simple, ad-free weather application built with Go, SQLite, and Pico.css.
